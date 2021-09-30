@@ -121,7 +121,7 @@ func (e *Switch) tx(src, dst tcpip.LinkAddress, pkt *stack.PacketBuffer) error {
 	e.connLock.Lock()
 	defer e.connLock.Unlock()
 
-	if dst == header.EthernetBroadcastAddress {
+	if dst == header.EthernetBroadcastAddress || header.IsMulticastEthernetAddress(dst) {
 		e.camLock.RLock()
 		srcID, ok := e.cam[src]
 		if !ok {
@@ -224,7 +224,7 @@ loop:
 				log.Error(err)
 			}
 		}
-		if eth.DestinationAddress() == e.gateway.LinkAddress() || eth.DestinationAddress() == header.EthernetBroadcastAddress {
+		if eth.DestinationAddress() == e.gateway.LinkAddress() || eth.DestinationAddress() == header.EthernetBroadcastAddress || header.IsMulticastEthernetAddress(eth.DestinationAddress()) {
 			vv.TrimFront(header.EthernetMinimumSize)
 			e.gateway.DeliverNetworkPacket(
 				eth.SourceAddress(),
