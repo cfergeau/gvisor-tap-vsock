@@ -15,6 +15,7 @@ import (
 	"gvisor.dev/gvisor/pkg/tcpip"
 	"gvisor.dev/gvisor/pkg/tcpip/buffer"
 	"gvisor.dev/gvisor/pkg/tcpip/header"
+	"gvisor.dev/gvisor/pkg/tcpip/network/ipv6"
 	"gvisor.dev/gvisor/pkg/tcpip/stack"
 )
 
@@ -216,6 +217,19 @@ loop:
 		e.camLock.Lock()
 		e.cam[eth.SourceAddress()] = id
 		e.camLock.Unlock()
+
+		if eth.Type() == ipv6.ProtocolNumber {
+			networkLayer := header.IPv6(buf[header.EthernetMinimumSize:])
+			if networkLayer.TransportProtocol() == header.ICMPv6ProtocolNumber {
+				transportLayer := header.ICMPv6(networkLayer.Payload())
+				if transportLayer.Type() == header.ICMPv6RouterSolicit {
+					routerAdvertisement := raBufSimple(e.gateway.LinkAddress(), eth.SourceAddress(), tcpip.Address(net.ParseIP("fe80::1")), 1000)
+					if err := e.tx(e.gateway.LinkAddress(), eth.SourceAddress(), routerAdvertisement); err != nil {
+						log.Error(err)
+					}
+				}
+			}
+		}
 
 		if eth.DestinationAddress() != e.gateway.LinkAddress() {
 			if err := e.tx(eth.SourceAddress(), eth.DestinationAddress(), stack.NewPacketBuffer(stack.PacketBufferOptions{
