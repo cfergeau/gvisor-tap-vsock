@@ -247,6 +247,9 @@ func GvproxyConfigure(config *GvproxyConfig, args *GvproxyArgs, version string) 
 	if config.Stack.GatewayMacAddress == "" {
 		config.Stack.GatewayMacAddress = "5a:94:ef:e4:0c:dd"
 	}
+	if config.Stack.GatewayIPv6 == "" {
+		config.Stack.GatewayIPv6 = "fd00::1"
+	}
 	if len(config.Stack.NAT) == 0 {
 		config.Stack.NAT = map[string]string{
 			config.Stack.HostIP: "127.0.0.1",

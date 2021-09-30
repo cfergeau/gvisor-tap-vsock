@@ -22,14 +22,17 @@ type Configuration struct {
 	// IP address of the virtual gateway
 	GatewayIP string `yaml:"gatewayIP,omitempty"`
 
+	// IPv6 address of the virtual gateway. Prefix will be 64.
+	GatewayIPv6 string `yaml:"gatewayIPv6,omitempty"`
+
+	// MAC address of the virtual gateway
+	GatewayMacAddress string `yaml:"gatewayMacAddress,omitempty"`
+
 	// IP address of the device in the virtual network
 	DeviceIP string `yaml:"deviceIP,omitempty"`
 
 	// IP address of the host in the virtual network
 	HostIP string `yaml:"hostIP,omitempty"`
-
-	// MAC address of the virtual gateway
-	GatewayMacAddress string `yaml:"gatewayMacAddress,omitempty"`
 
 	// Built-in DNS records that will be served by the DNS server embedded in the gateway
 	DNS []Zone `yaml:"dns,omitempty"`
