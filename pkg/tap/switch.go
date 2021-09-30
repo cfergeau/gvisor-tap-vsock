@@ -126,7 +126,7 @@ func (e *Switch) txPkt(pkt stack.PacketBufferPtr) error {
 	dst := eth.DestinationAddress()
 	src := eth.SourceAddress()
 
-	if dst == header.EthernetBroadcastAddress {
+	if dst == header.EthernetBroadcastAddress || header.IsMulticastEthernetAddress(dst) {
 		e.camLock.RLock()
 		srcID, ok := e.cam[src]
 		if !ok {
@@ -269,7 +269,7 @@ func (e *Switch) rxBuf(_ context.Context, id int, buf []byte) {
 		}
 		pkt.DecRef()
 	}
-	if eth.DestinationAddress() == e.gateway.LinkAddress() || eth.DestinationAddress() == header.EthernetBroadcastAddress {
+	if eth.DestinationAddress() == e.gateway.LinkAddress() || eth.DestinationAddress() == header.EthernetBroadcastAddress || header.IsMulticastEthernetAddress(eth.DestinationAddress()) {
 		data := buffer.MakeWithData(buf)
 		data.TrimFront(header.EthernetMinimumSize)
 		pkt := stack.NewPacketBuffer(stack.PacketBufferOptions{
