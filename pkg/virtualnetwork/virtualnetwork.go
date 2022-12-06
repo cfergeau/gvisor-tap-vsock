@@ -124,6 +124,11 @@ func (n *VirtualNetwork) BytesReceived() uint64 {
 	return n.networkSwitch.Received
 }
 
+func (n *VirtualNetwork) Close() error {
+	n.stack.Close()
+	return nil
+}
+
 func createStack(configuration *types.Configuration, endpoint stack.LinkEndpoint) (*stack.Stack, error) {
 	s := stack.New(stack.Options{
 		NetworkProtocols: []stack.NetworkProtocolFactory{
