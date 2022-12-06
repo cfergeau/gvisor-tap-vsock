@@ -126,6 +126,7 @@ func (n *VirtualNetwork) BytesReceived() uint64 {
 
 func (n *VirtualNetwork) Close() error {
 	n.stack.Close()
+	n.networkSwitch.Close()
 	return nil
 }
 

@@ -121,6 +121,17 @@ type connTarget struct {
 	conn protocolConn
 }
 
+func (e *Switch) Close() error {
+	e.connLock.Lock()
+	defer e.connLock.Unlock()
+
+	for id, conn := range e.conns {
+		e.disconnect(id, conn)
+	}
+
+	return nil
+}
+
 func (e *Switch) txPkt(pkt *stack.PacketBuffer) error {
 	buf := pkt.ToView().AsSlice()
 	eth := header.Ethernet(buf)
