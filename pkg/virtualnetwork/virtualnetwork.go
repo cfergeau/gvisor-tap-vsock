@@ -24,11 +24,11 @@ import (
 )
 
 type VirtualNetwork struct {
-	configuration  *types.Configuration
-	stack          *stack.Stack
+	configuration  *types.Configuration // nothing to free
+	stack          *stack.Stack         // vn.stack.Close()
 	networkSwitch  *tap.Switch
-	servicesMux    http.Handler
-	ipPool         *tap.IPPool
+	servicesMux    http.Handler // nothing to free
+	ipPool         *tap.IPPool  // nothing to free
 	portsForwarder *forwarder.PortsForwarder
 	apiToken       string // Bearer token for API authentication
 }
@@ -42,8 +42,6 @@ func (n *VirtualNetwork) SetAPIToken(token string) {
 }
 
 func New(configuration *types.Configuration) (*VirtualNetwork, error) {
-	var endpoint stack.LinkEndpoint
-
 	ipPool, err := tap.NewIPPool(configuration.Subnet)
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse subnet CIDR: %w", err)
@@ -69,6 +67,7 @@ func New(configuration *types.Configuration) (*VirtualNetwork, error) {
 	tapEndpoint.Connect(networkSwitch)
 	networkSwitch.Connect(tapEndpoint)
 
+	var endpoint stack.LinkEndpoint
 	if configuration.CaptureFile != "" {
 		_ = os.Remove(configuration.CaptureFile)
 		fd, err := os.Create(configuration.CaptureFile)
@@ -91,23 +90,21 @@ func New(configuration *types.Configuration) (*VirtualNetwork, error) {
 	if err != nil {
 		return nil, fmt.Errorf("cannot create ports forwarder: %w", err)
 	}
-	mux, err := addServices(configuration, stack, ipPool, portsForwarder)
-	if err != nil {
-		return nil, fmt.Errorf("cannot add network services: %w", err)
-	}
+	/*
+		mux, err := addServices(configuration, stack, ipPool, portsForwarder)
+		if err != nil {
+			return nil, fmt.Errorf("cannot add network services: %w", err)
+		}
+	*/
 
 	return &VirtualNetwork{
-		configuration:  configuration,
-		stack:          stack,
-		networkSwitch:  networkSwitch,
-		servicesMux:    mux,
+		configuration: configuration,
+		stack:         stack,
+		networkSwitch: networkSwitch,
+		//servicesMux:    mux,
 		ipPool:         ipPool,
 		portsForwarder: portsForwarder,
 	}, nil
-}
-
-func (n *VirtualNetwork) Close() error {
-	return n.portsForwarder.Close()
 }
 
 func (n *VirtualNetwork) BytesSent() uint64 {
@@ -127,7 +124,7 @@ func (n *VirtualNetwork) BytesReceived() uint64 {
 func (n *VirtualNetwork) Close() error {
 	n.stack.Close()
 	n.networkSwitch.Close()
-	return nil
+	return n.portsForwarder.Close()
 }
 
 func createStack(configuration *types.Configuration, endpoint stack.LinkEndpoint) (*stack.Stack, error) {

@@ -34,6 +34,8 @@ type NetworkSwitch interface {
 
 const maxStreamPacketSize = 128 * 1024
 
+var _ NetworkSwitch = &Switch{}
+
 type Switch struct {
 	Sent     uint64
 	Received uint64
