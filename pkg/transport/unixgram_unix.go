@@ -65,3 +65,37 @@ func AcceptVfkit(listeningConn *net.UnixConn) (net.Conn, error) {
 	}
 	return connectListeningUnixgramConn(listeningConn, vfkitAddr.(*net.UnixAddr))
 }
+
+/*
+ * Try to get remote address without sending data first, but this did not work as expected
+func vfkitAccept(listeningConn *net.UnixConn) (net.Conn, error) {
+	rawConn, err := listeningConn.SyscallConn()
+	if err != nil {
+		return nil, err
+	}
+
+	var vfkitSockaddr syscall.Sockaddr
+	var getRemoteAddrErr error
+	getRemoteAddr := func(fd uintptr) bool {
+		_, vfkitSockaddr, getRemoteAddrErr = syscall.Recvfrom(int(fd), []byte{}, syscall.MSG_PEEK|syscall.MSG_TRUNC)
+		return true
+	}
+	if err := rawConn.Read(getRemoteAddr); err != nil {
+		return nil, err
+	}
+	if getRemoteAddrErr != nil {
+		return nil, err
+	}
+	vfkitSockaddrUnix, ok := vfkitSockaddr.(*syscall.SockaddrUnix)
+	if !ok {
+		return nil, fmt.Errorf("unexpected remote address type: %t", vfkitSockaddr)
+	}
+	return connectListeningUnixgramConn(
+		listeningConn,
+		&net.UnixAddr{
+			Name: vfkitSockaddrUnix.Name,
+			Net:  "unixgram",
+		},
+	)
+}
+*/
