@@ -266,8 +266,8 @@ func (e *Switch) rxBuf(_ context.Context, id int, buf []byte) {
 		if networkLayer.TransportProtocol() == header.ICMPv6ProtocolNumber {
 			transportLayer := header.ICMPv6(networkLayer.Payload())
 			if transportLayer.Type() == header.ICMPv6RouterSolicit {
-				routerAdvertisement := raBufSimple(e.gateway.LinkAddress(), eth.SourceAddress(), tcpip.Address(net.ParseIP("fe80::1")), 1000)
-				if err := e.tx(e.gateway.LinkAddress(), eth.SourceAddress(), routerAdvertisement); err != nil {
+				routerAdvertisement := raBufSimple(e.gateway.LinkAddress(), eth.SourceAddress(), tcpip.AddrFrom16Slice(net.ParseIP("fe80::1")), 1000)
+				if err := e.tx(routerAdvertisement); err != nil {
 					log.Error(err)
 				}
 			}
