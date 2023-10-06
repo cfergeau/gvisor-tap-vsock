@@ -4,6 +4,7 @@ import (
 	"net/url"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/containers/gvisor-tap-vsock/pkg/types"
 	"github.com/pkg/errors"
@@ -20,7 +21,8 @@ type GvProxy struct {
 	sshPort int
 	pidFile string
 
-	config *types.Configuration
+	config   *types.Configuration
+	forwards []Forward
 }
 
 func (gvproxy *GvProxy) SetVpnkitSocket(vpnkitSocket string) error {
@@ -130,6 +132,65 @@ func (gvproxy *GvProxy) RemovePidFile() error {
 
 func (gvproxy *GvProxy) SetConfig(config *types.Configuration) error {
 	gvproxy.config = config
+
+	return nil
+}
+
+type Forward struct {
+	socketPath string
+	src        *url.URL
+	dest       *url.URL
+	identity   string
+}
+
+func (gvproxy *GvProxy) SetForwards(forwardSocket, forwardDest, forwardUser, forwardIdentity []string, sshHostPort string) error {
+	var forwards []Forward
+
+	count := len(forwardSocket)
+	if count != len(forwardDest) || count != len(forwardUser) || count != len(forwardIdentify) {
+		return errors.New("-forward-sock, --forward-dest, --forward-user, and --forward-identity must all be specified together, " +
+			"the same number of times, or not at all")
+	}
+
+	for i := 0; i < len(forwardIdentity); i++ {
+		if _, err := os.Stat(forwardIdentity[i]); err != nil {
+			return errors.Wrapf(err, "Identity file %s can't be loaded", forwardIdentity[i])
+		}
+	}
+
+	for i := 0; i < len(forwardSocket); i++ {
+		var (
+			src *url.URL
+			err error
+		)
+		if strings.Contains(forwardSocket[i], "://") {
+			src, err = url.Parse(forwardSocket[i])
+			if err != nil {
+				return err
+			}
+		} else {
+			src = &url.URL{
+				Scheme: "unix",
+				Path:   forwardSocket[i],
+			}
+		}
+
+		dest := &url.URL{
+			Scheme: "ssh",
+			User:   url.User(forwardUser[i]),
+			Host:   sshHostPort,
+			Path:   forwardDest[i],
+		}
+		forward := Forward{
+			socketPath: forwardSocket[i],
+			src:        src,
+			dest:       dest,
+			identity:   forwardIdentity[i],
+		}
+		forwards = append(forwards, forward)
+	}
+
+	gvproxy.forwards = forwards
 
 	return nil
 }

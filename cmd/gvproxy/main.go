@@ -118,16 +118,8 @@ func main() {
 		exitWithError(err)
 	}
 
-	if c := len(forwardSocket); c != len(forwardDest) || c != len(forwardUser) || c != len(forwardIdentify) {
-		exitWithError(errors.New("-forward-sock, --forward-dest, --forward-user, and --forward-identity must all be specified together, " +
-			"the same number of times, or not at all"))
-	}
-
-	for i := 0; i < len(forwardSocket); i++ {
-		_, err := os.Stat(forwardIdentify[i])
-		if err != nil {
-			exitWithError(errors.Wrapf(err, "Identity file %s can't be loaded", forwardIdentify[i]))
-		}
+	if err := gvproxy.SetForwards(forwardSocket, forwardDest, forwardUser, forwardIdentify, sshHostPort); err != nil {
+		exitWithError(err)
 	}
 
 	// Create a PID file if requested
