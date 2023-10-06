@@ -12,7 +12,6 @@ import (
 	"os"
 	"os/signal"
 	"runtime"
-	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -88,65 +87,35 @@ func main() {
 	// Intercept WM_QUIT/WM_CLOSE events if on Windows as SIGTERM (noop on other OSs)
 	winquit.SimulateSigTermOnQuit(sigChan)
 
+	var gvproxy GvProxy
+
 	// Make sure the qemu socket provided is valid syntax
 	if len(qemuSocket) > 0 {
-		uri, err := url.Parse(qemuSocket)
-		if err != nil || uri == nil {
-			exitWithError(errors.Wrapf(err, "invalid value for listen-qemu"))
-		}
-		if _, err := os.Stat(uri.Path); err == nil && uri.Scheme == "unix" {
-			exitWithError(errors.Errorf("%q already exists", uri.Path))
+		if err := gvproxy.SetQemuSocket(qemuSocket); err != nil {
+			exitWithError(err)
 		}
 	}
 	if len(bessSocket) > 0 {
-		uri, err := url.Parse(bessSocket)
-		if err != nil || uri == nil {
-			exitWithError(errors.Wrapf(err, "invalid value for listen-bess"))
-		}
-		if uri.Scheme != "unixpacket" {
-			exitWithError(errors.New("listen-bess must be unixpacket:// address"))
-		}
-		if _, err := os.Stat(uri.Path); err == nil {
-			exitWithError(errors.Errorf("%q already exists", uri.Path))
+		if err := gvproxy.SetBessSocket(bessSocket); err != nil {
+			exitWithError(err)
 		}
 	}
 	if len(vfkitSocket) > 0 {
-		uri, err := url.Parse(vfkitSocket)
-		if err != nil || uri == nil {
-			exitWithError(errors.Wrapf(err, "invalid value for listen-vfkit"))
-		}
-		if uri.Scheme != "unixgram" {
-			exitWithError(errors.New("listen-vfkit must be unixgram:// address"))
-		}
-		if _, err := os.Stat(uri.Path); err == nil {
-			exitWithError(errors.Errorf("%q already exists", uri.Path))
+		if err := gvproxy.SetVfkitSocket(vfkitSocket); err != nil {
+			exitWithError(err)
 		}
 	}
 
-	if vpnkitSocket != "" && qemuSocket != "" {
-		exitWithError(errors.New("cannot use qemu and vpnkit protocol at the same time"))
-	}
-	if vpnkitSocket != "" && bessSocket != "" {
-		exitWithError(errors.New("cannot use bess and vpnkit protocol at the same time"))
-	}
-	if qemuSocket != "" && bessSocket != "" {
-		exitWithError(errors.New("cannot use qemu and bess protocol at the same time"))
+	if len(vpnkitSocket) > 0 {
+		if err := gvproxy.SetVfkitSocket(vfkitSocket); err != nil {
+			exitWithError(err)
+		}
 	}
 
 	// If the given port is not between the privileged ports
 	// and the oft considered maximum port, return an error.
-	if sshPort < 1024 || sshPort > 65535 {
-		exitWithError(errors.New("ssh-port value must be between 1024 and 65535"))
-	}
-	protocol := types.HyperKitProtocol
-	if qemuSocket != "" {
-		protocol = types.QemuProtocol
-	}
-	if bessSocket != "" {
-		protocol = types.BessProtocol
-	}
-	if vfkitSocket != "" {
-		protocol = types.VfkitProtocol
+	if err := gvproxy.SetSSHPort(sshPort); err != nil {
+		exitWithError(err)
 	}
 
 	if c := len(forwardSocket); c != len(forwardDest) || c != len(forwardUser) || c != len(forwardIdentify) {
@@ -163,20 +132,19 @@ func main() {
 
 	// Create a PID file if requested
 	if len(pidFile) > 0 {
-		f, err := os.Create(pidFile)
-		if err != nil {
+		if err := gvproxy.SetPidFile(pidFile); err != nil {
+			exitWithError(err)
+		}
+
+		if err := gvproxy.CreatePidFile(); err != nil {
 			exitWithError(err)
 		}
 		// Remove the pid-file when exiting
 		defer func() {
-			if err := os.Remove(pidFile); err != nil {
+			if err := gvproxy.RemovePidFile(); err != nil {
 				log.Error(err)
 			}
 		}()
-		pid := os.Getpid()
-		if _, err := f.WriteString(strconv.Itoa(pid)); err != nil {
-			exitWithError(err)
-		}
 	}
 
 	config := types.Configuration{
@@ -228,7 +196,10 @@ func main() {
 		VpnKitUUIDMacAddresses: map[string]string{
 			"c3d68012-0208-11ea-9fd7-f2189899ab08": "5a:94:ef:e4:0c:ee",
 		},
-		Protocol: protocol,
+		Protocol: gvproxy.Protocol(),
+	}
+	if err := gvproxy.SetConfig(&config); err != nil {
+		exitWithError(err)
 	}
 
 	groupErrs.Go(func() error {
