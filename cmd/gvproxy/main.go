@@ -8,7 +8,6 @@ import (
 	"net"
 	"net/http"
 	"net/http/pprof"
-	"net/url"
 	"os"
 	"os/signal"
 	"runtime"
@@ -195,7 +194,7 @@ func main() {
 	}
 
 	groupErrs.Go(func() error {
-		return run(ctx, groupErrs, &config, endpoints)
+		return run(ctx, groupErrs, &gvproxy, endpoints)
 	})
 
 	// Wait for something to happen
@@ -349,8 +348,42 @@ func listenStdio(ctx context.Context, g *errgroup.Group, stdioSocket string, vn 
 	return nil
 }
 
-func run(ctx context.Context, g *errgroup.Group, configuration *types.Configuration, endpoints []string) error {
-	vn, err := virtualnetwork.New(configuration)
+func createForwards(ctx context.Context, g *errgroup.Group, forwards []Forward, vn *virtualnetwork.VirtualNetwork) error {
+	for i := 0; i < len(forwards); i++ {
+		j := i
+		g.Go(func() error {
+			defer os.Remove(forwards[j].socketPath)
+			forward, err := sshclient.CreateSSHForward(ctx, forwards[j].src, forwards[j].dest, forwards[j].identity, vn)
+			if err != nil {
+				return err
+			}
+			go func() {
+				<-ctx.Done()
+				// Abort pending accepts
+				forward.Close()
+			}()
+		loop:
+			for {
+				select {
+				case <-ctx.Done():
+					break loop
+				default:
+					// proceed
+				}
+				err := forward.AcceptAndTunnel(ctx)
+				if err != nil {
+					log.Debugf("Error occurred handling ssh forwarded connection: %q", err)
+				}
+			}
+			return nil
+		})
+
+	}
+	return nil
+}
+
+func run(ctx context.Context, g *errgroup.Group, gvproxy *GvProxy, endpoints []string) error {
+	vn, err := virtualnetwork.New(gvproxy.config)
 	if err != nil {
 		return err
 	}
@@ -420,56 +453,8 @@ func run(ctx context.Context, g *errgroup.Group, configuration *types.Configurat
 		}
 	}
 
-	for i := 0; i < len(forwardSocket); i++ {
-		var (
-			src *url.URL
-			err error
-		)
-		if strings.Contains(forwardSocket[i], "://") {
-			src, err = url.Parse(forwardSocket[i])
-			if err != nil {
-				return err
-			}
-		} else {
-			src = &url.URL{
-				Scheme: "unix",
-				Path:   forwardSocket[i],
-			}
-		}
-
-		dest := &url.URL{
-			Scheme: "ssh",
-			User:   url.User(forwardUser[i]),
-			Host:   sshHostPort,
-			Path:   forwardDest[i],
-		}
-		j := i
-		g.Go(func() error {
-			defer os.Remove(forwardSocket[j])
-			forward, err := sshclient.CreateSSHForward(ctx, src, dest, forwardIdentify[j], vn)
-			if err != nil {
-				return err
-			}
-			go func() {
-				<-ctx.Done()
-				// Abort pending accepts
-				forward.Close()
-			}()
-		loop:
-			for {
-				select {
-				case <-ctx.Done():
-					break loop
-				default:
-					// proceed
-				}
-				err := forward.AcceptAndTunnel(ctx)
-				if err != nil {
-					log.Debugf("Error occurred handling ssh forwarded connection: %q", err)
-				}
-			}
-			return nil
-		})
+	if err := createForwards(ctx, g, gvproxy.forwards, vn); err != nil {
+		return err
 	}
 
 	return nil
