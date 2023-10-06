@@ -234,6 +234,121 @@ func captureFile() string {
 	return "capture.pcap"
 }
 
+func listenVpnkit(ctx context.Context, g *errgroup.Group, vpnkitSocket string, vn *virtualnetwork.VirtualNetwork) error {
+	vpnkitListener, err := transport.Listen(vpnkitSocket)
+	if err != nil {
+		return err
+	}
+	g.Go(func() error {
+	vpnloop:
+		for {
+			select {
+			case <-ctx.Done():
+				break vpnloop
+			default:
+				// pass through
+			}
+			conn, err := vpnkitListener.Accept()
+			if err != nil {
+				log.Errorf("vpnkit accept error: %s", err)
+				continue
+			}
+			g.Go(func() error {
+				return vn.AcceptVpnKit(conn)
+			})
+		}
+		return nil
+	})
+
+	return nil
+}
+
+func listenQemu(ctx context.Context, g *errgroup.Group, qemuSocket string, vn *virtualnetwork.VirtualNetwork) error {
+	qemuListener, err := transport.Listen(qemuSocket)
+	if err != nil {
+		return err
+	}
+
+	g.Go(func() error {
+		<-ctx.Done()
+		if err := qemuListener.Close(); err != nil {
+			log.Errorf("error closing %s: %q", qemuSocket, err)
+		}
+		return os.Remove(qemuSocket)
+	})
+
+	g.Go(func() error {
+		conn, err := qemuListener.Accept()
+		if err != nil {
+			return errors.Wrap(err, "qemu accept error")
+
+		}
+		return vn.AcceptQemu(ctx, conn)
+	})
+
+	return nil
+}
+
+func listenBess(ctx context.Context, g *errgroup.Group, bessSocket string, vn *virtualnetwork.VirtualNetwork) error {
+	bessListener, err := transport.Listen(bessSocket)
+	if err != nil {
+		return err
+	}
+
+	g.Go(func() error {
+		<-ctx.Done()
+		if err := bessListener.Close(); err != nil {
+			log.Errorf("error closing %s: %q", bessSocket, err)
+		}
+		return os.Remove(bessSocket)
+	})
+
+	g.Go(func() error {
+		conn, err := bessListener.Accept()
+		if err != nil {
+			return errors.Wrap(err, "bess accept error")
+
+		}
+		return vn.AcceptBess(ctx, conn)
+	})
+
+	return nil
+}
+
+func listenVfkit(ctx context.Context, g *errgroup.Group, vfkitSocket string, vn *virtualnetwork.VirtualNetwork) error {
+	conn, err := transport.ListenUnixgram(vfkitSocket)
+	if err != nil {
+		return err
+	}
+
+	g.Go(func() error {
+		<-ctx.Done()
+		if err := conn.Close(); err != nil {
+			log.Errorf("error closing %s: %q", vfkitSocket, err)
+		}
+		return os.Remove(vfkitSocket)
+	})
+
+	g.Go(func() error {
+		vfkitConn, err := transport.AcceptVfkit(conn)
+		if err != nil {
+			return err
+		}
+		return vn.AcceptVfkit(ctx, vfkitConn)
+	})
+
+	return nil
+}
+
+func listenStdio(ctx context.Context, g *errgroup.Group, stdioSocket string, vn *virtualnetwork.VirtualNetwork) error {
+	g.Go(func() error {
+		conn := stdio.GetStdioConn()
+		return vn.AcceptStdio(ctx, conn)
+	})
+
+	return nil
+}
+
 func run(ctx context.Context, g *errgroup.Group, configuration *types.Configuration, endpoints []string) error {
 	vn, err := virtualnetwork.New(configuration)
 	if err != nil {
@@ -276,108 +391,33 @@ func run(ctx context.Context, g *errgroup.Group, configuration *types.Configurat
 	}
 
 	if vpnkitSocket != "" {
-		vpnkitListener, err := transport.Listen(vpnkitSocket)
-		if err != nil {
+		if err := listenVpnkit(ctx, g, vpnkitSocket, vn); err != nil {
 			return err
 		}
-		g.Go(func() error {
-		vpnloop:
-			for {
-				select {
-				case <-ctx.Done():
-					break vpnloop
-				default:
-					// pass through
-				}
-				conn, err := vpnkitListener.Accept()
-				if err != nil {
-					log.Errorf("vpnkit accept error: %s", err)
-					continue
-				}
-				g.Go(func() error {
-					return vn.AcceptVpnKit(conn)
-				})
-			}
-			return nil
-		})
 	}
 
 	if qemuSocket != "" {
-		qemuListener, err := transport.Listen(qemuSocket)
-		if err != nil {
+		if err := listenQemu(ctx, g, qemuSocket, vn); err != nil {
 			return err
 		}
-
-		g.Go(func() error {
-			<-ctx.Done()
-			if err := qemuListener.Close(); err != nil {
-				log.Errorf("error closing %s: %q", qemuSocket, err)
-			}
-			return os.Remove(qemuSocket)
-		})
-
-		g.Go(func() error {
-			conn, err := qemuListener.Accept()
-			if err != nil {
-				return errors.Wrap(err, "qemu accept error")
-
-			}
-			return vn.AcceptQemu(ctx, conn)
-		})
 	}
 
 	if bessSocket != "" {
-		bessListener, err := transport.Listen(bessSocket)
-		if err != nil {
+		if err := listenBess(ctx, g, bessSocket, vn); err != nil {
 			return err
 		}
-
-		g.Go(func() error {
-			<-ctx.Done()
-			if err := bessListener.Close(); err != nil {
-				log.Errorf("error closing %s: %q", bessSocket, err)
-			}
-			return os.Remove(bessSocket)
-		})
-
-		g.Go(func() error {
-			conn, err := bessListener.Accept()
-			if err != nil {
-				return errors.Wrap(err, "bess accept error")
-
-			}
-			return vn.AcceptBess(ctx, conn)
-		})
 	}
 
 	if vfkitSocket != "" {
-		conn, err := transport.ListenUnixgram(vfkitSocket)
-		if err != nil {
+		if err := listenVfkit(ctx, g, vfkitSocket, vn); err != nil {
 			return err
 		}
-
-		g.Go(func() error {
-			<-ctx.Done()
-			if err := conn.Close(); err != nil {
-				log.Errorf("error closing %s: %q", vfkitSocket, err)
-			}
-			return os.Remove(vfkitSocket)
-		})
-
-		g.Go(func() error {
-			vfkitConn, err := transport.AcceptVfkit(conn)
-			if err != nil {
-				return err
-			}
-			return vn.AcceptVfkit(ctx, vfkitConn)
-		})
 	}
 
 	if stdioSocket != "" {
-		g.Go(func() error {
-			conn := stdio.GetStdioConn()
-			return vn.AcceptStdio(ctx, conn)
-		})
+		if err := listenStdio(ctx, g, stdioSocket, vn); err != nil {
+			return err
+		}
 	}
 
 	for i := 0; i < len(forwardSocket); i++ {
