@@ -1,8 +1,8 @@
 package main
 
 import (
-	"fmt"
 	"net"
+	"strconv"
 
 	"github.com/containers/gvisor-tap-vsock/pkg/types"
 )
@@ -81,7 +81,7 @@ func defaultConfig(gvproxy *GvProxy) Config {
 			},
 		},
 		Forwards: map[string]string{
-			fmt.Sprintf("127.0.0.1:%d", sshPort): sshHostAndPort,
+			net.JoinHostPort("127.0.0.1", strconv.Itoa(sshPort)): sshHostAndPort,
 		},
 		NAT: map[string]string{
 			hostIP: "127.0.0.1",

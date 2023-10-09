@@ -45,8 +45,8 @@ var (
 	exitCode        int
 )
 
-const (
-	sshHostAndPort = "192.168.127.2:22"
+var (
+	sshHostAndPort = net.JoinHostPort("192.168.127.2", "22")
 )
 
 func main() {
