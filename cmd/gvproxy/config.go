@@ -35,18 +35,20 @@ func (cfg *Config) SetSearchDomains(searchDomains []string) error {
 
 func defaultConfig(gvproxy *GvProxy) Config {
 	const (
-		hostIP       = "192.168.127.254"
-		vmIP         = "192.168.127.2"
-		vmMacAddress = "5a:94:ef:e4:0c:ee"
-		host         = "host"
-		gateway      = "gateway"
+		hostIP            = "192.168.127.254"
+		vmIP              = "192.168.127.2"
+		vmMacAddress      = "5a:94:ef:e4:0c:ee"
+		gatewayIP         = "192.168.127.1"
+		gatewayMacAddress = "5a:94:ef:e4:0c:dd"
+		host              = "host"
+		gateway           = "gateway"
 	)
 
 	config := Config{
 		MTU:               1500,
 		Subnet:            "192.168.127.0/24",
 		GatewayIP:         gatewayIP,
-		GatewayMacAddress: "5a:94:ef:e4:0c:dd",
+		GatewayMacAddress: gatewayMacAddress,
 		DHCPStaticLeases: map[string]string{
 			vmIP: vmMacAddress,
 		},

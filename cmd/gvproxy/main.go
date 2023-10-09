@@ -46,7 +46,6 @@ var (
 )
 
 const (
-	gatewayIP      = "192.168.127.1"
 	sshHostAndPort = "192.168.127.2:22"
 )
 
@@ -358,7 +357,7 @@ func run(ctx context.Context, g *errgroup.Group, gvproxy *GvProxy, endpoints []s
 		httpServe(ctx, g, ln, withProfiler(vn))
 	}
 
-	ln, err := vn.Listen("tcp", fmt.Sprintf("%s:80", gatewayIP))
+	ln, err := vn.Listen("tcp", fmt.Sprintf("%s:80", gvproxy.config.GatewayIP))
 	if err != nil {
 		return err
 	}
