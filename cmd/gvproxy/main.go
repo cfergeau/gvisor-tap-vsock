@@ -48,7 +48,7 @@ var (
 )
 
 var (
-	sshHostAndPort = net.JoinHostPort("192.168.127.2", "22")
+	sshHostAndPort = net.JoinHostPort(refactor.VMIP, "22")
 )
 
 func main() {

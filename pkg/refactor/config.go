@@ -37,10 +37,13 @@ func (cfg *Config) AddForward(src, dest string) error {
 	return nil
 }
 
+const (
+	VMIP = "192.168.127.2"
+)
+
 func DefaultConfig(gvproxy *GvProxy) Config {
 	const (
 		hostIP            = "192.168.127.254"
-		vmIP              = "192.168.127.2"
 		vmMacAddress      = "5a:94:ef:e4:0c:ee"
 		gatewayIP         = "192.168.127.1"
 		gatewayMacAddress = "5a:94:ef:e4:0c:dd"
@@ -54,7 +57,7 @@ func DefaultConfig(gvproxy *GvProxy) Config {
 		GatewayIP:         gatewayIP,
 		GatewayMacAddress: gatewayMacAddress,
 		DHCPStaticLeases: map[string]string{
-			vmIP: vmMacAddress,
+			VMIP: vmMacAddress,
 		},
 		DNS: []types.Zone{
 			{
