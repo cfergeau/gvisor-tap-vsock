@@ -21,7 +21,7 @@ type GvProxy struct {
 	sshPort int
 	pidFile string
 
-	config   *types.Configuration
+	config   *Config
 	forwards []Forward
 }
 
@@ -130,7 +130,7 @@ func (gvproxy *GvProxy) RemovePidFile() error {
 	return nil
 }
 
-func (gvproxy *GvProxy) SetConfig(config *types.Configuration) error {
+func (gvproxy *GvProxy) SetConfig(config *Config) error {
 	gvproxy.config = config
 
 	return nil
