@@ -158,6 +158,19 @@ func (gvproxy *GvProxy) SetForwards(forwardSocket, forwardDest, forwardUser, for
 		}
 	}
 
+	// git show 137f40464
+	// {
+	//   "local": "\\\\.\\pipe\\crc-podman",
+	//   "remote": "ssh-tunnel://core@192.168.127.2:22/run/podman/podman.sock?key=C%3A%5CUsers%5Cprkumar%5C.crc%5Cmachines%5Ccrc%5Cid_ecdsa",
+	//   "protocol": "npipe"
+	// }
+	// Is this code below equivalent to this?
+	// {
+	//   "local": $forwardSocket[i] // may need to prepend unix://
+	//   "remote": "ssh-tunnel://$forwardUser[i]$sshHostAndPort/$forwardDest[i]?key=$forwardIdentity[i]",
+	//   "protocol": "unix"/"tcp"
+	// }
+
 	for i := 0; i < len(forwardSocket); i++ {
 		var (
 			src *url.URL

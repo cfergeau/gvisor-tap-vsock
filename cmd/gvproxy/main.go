@@ -115,6 +115,8 @@ func main() {
 		exitWithError(err)
 	}
 
+	// podman: -forward-sock /Users/teuf/.local/share/containers/podman/machine/qemu/podman.sock -forward-dest /run/user/501/podman/podman.sock -forward-user core -forward-identity /Users/teuf/.ssh/podman-machine-default
+
 	if err := gvproxy.SetForwards(forwardSocket, forwardDest, forwardUser, forwardIdentify, sshHostAndPort); err != nil {
 		exitWithError(err)
 	}
