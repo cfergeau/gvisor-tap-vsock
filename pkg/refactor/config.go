@@ -1,4 +1,4 @@
-package main
+package refactor
 
 import (
 	"net"
@@ -37,7 +37,7 @@ func (cfg *Config) AddForward(src, dest string) error {
 	return nil
 }
 
-func defaultConfig(gvproxy *GvProxy) Config {
+func DefaultConfig(gvproxy *GvProxy) Config {
 	const (
 		hostIP            = "192.168.127.254"
 		vmIP              = "192.168.127.2"

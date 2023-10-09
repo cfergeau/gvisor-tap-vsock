@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/containers/gvisor-tap-vsock/pkg/net/stdio"
+	"github.com/containers/gvisor-tap-vsock/pkg/refactor"
 	"github.com/containers/gvisor-tap-vsock/pkg/sshclient"
 	"github.com/containers/gvisor-tap-vsock/pkg/transport"
 	"github.com/containers/gvisor-tap-vsock/pkg/types"
@@ -83,7 +84,7 @@ func main() {
 	// Intercept WM_QUIT/WM_CLOSE events if on Windows as SIGTERM (noop on other OSs)
 	winquit.SimulateSigTermOnQuit(sigChan)
 
-	var gvproxy GvProxy
+	var gvproxy refactor.GvProxy
 
 	// Make sure the qemu socket provided is valid syntax
 	if len(qemuSocket) > 0 {
@@ -135,7 +136,7 @@ func main() {
 		}()
 	}
 
-	config := defaultConfig(&gvproxy)
+	config := refactor.DefaultConfig(&gvproxy)
 	if err := config.SetDebug(debug); err != nil {
 		exitWithError(err)
 	}
@@ -311,12 +312,12 @@ func listenStdio(ctx context.Context, g *errgroup.Group, stdioSocket string, vn 
 	return nil
 }
 
-func createForwards(ctx context.Context, g *errgroup.Group, forwards []Forward, vn *virtualnetwork.VirtualNetwork) error {
+func createForwards(ctx context.Context, g *errgroup.Group, forwards []refactor.Forward, vn *virtualnetwork.VirtualNetwork) error {
 	for i := 0; i < len(forwards); i++ {
 		j := i
 		g.Go(func() error {
-			defer os.Remove(forwards[j].socketPath)
-			forward, err := sshclient.CreateSSHForward(ctx, forwards[j].src, forwards[j].dest, forwards[j].identity, vn)
+			defer os.Remove(forwards[j].SocketPath)
+			forward, err := sshclient.CreateSSHForward(ctx, forwards[j].Src, forwards[j].Dest, forwards[j].Identity, vn)
 			if err != nil {
 				return err
 			}
@@ -345,8 +346,8 @@ func createForwards(ctx context.Context, g *errgroup.Group, forwards []Forward, 
 	return nil
 }
 
-func run(ctx context.Context, g *errgroup.Group, gvproxy *GvProxy, endpoints []string) error {
-	vn, err := virtualnetwork.New((*types.Configuration)(gvproxy.config))
+func run(ctx context.Context, g *errgroup.Group, gvproxy *refactor.GvProxy, endpoints []string) error {
+	vn, err := virtualnetwork.New((*types.Configuration)(gvproxy.Config))
 	if err != nil {
 		return err
 	}
@@ -361,7 +362,7 @@ func run(ctx context.Context, g *errgroup.Group, gvproxy *GvProxy, endpoints []s
 		httpServe(ctx, g, ln, withProfiler(vn))
 	}
 
-	ln, err := vn.Listen("tcp", fmt.Sprintf("%s:80", gvproxy.config.GatewayIP))
+	ln, err := vn.Listen("tcp", fmt.Sprintf("%s:80", gvproxy.Config.GatewayIP))
 	if err != nil {
 		return err
 	}
@@ -416,7 +417,7 @@ func run(ctx context.Context, g *errgroup.Group, gvproxy *GvProxy, endpoints []s
 		}
 	}
 
-	if err := createForwards(ctx, g, gvproxy.forwards, vn); err != nil {
+	if err := createForwards(ctx, g, gvproxy.Forwards, vn); err != nil {
 		return err
 	}
 

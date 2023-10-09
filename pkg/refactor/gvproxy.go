@@ -1,4 +1,4 @@
-package main
+package refactor
 
 import (
 	"net/url"
@@ -21,8 +21,8 @@ type GvProxy struct {
 	sshPort int
 	pidFile string
 
-	config   *Config
-	forwards []Forward
+	Config   *Config
+	Forwards []Forward
 }
 
 func (gvproxy *GvProxy) SetVpnkitSocket(vpnkitSocket string) error {
@@ -131,23 +131,23 @@ func (gvproxy *GvProxy) RemovePidFile() error {
 }
 
 func (gvproxy *GvProxy) SetConfig(config *Config) error {
-	gvproxy.config = config
+	gvproxy.Config = config
 
 	return nil
 }
 
 type Forward struct {
-	socketPath string
-	src        *url.URL
-	dest       *url.URL
-	identity   string
+	SocketPath string
+	Src        *url.URL
+	Dest       *url.URL
+	Identity   string
 }
 
 func (gvproxy *GvProxy) SetForwards(forwardSocket, forwardDest, forwardUser, forwardIdentity []string, sshHostAndPort string) error {
 	var forwards []Forward
 
 	count := len(forwardSocket)
-	if count != len(forwardDest) || count != len(forwardUser) || count != len(forwardIdentify) {
+	if count != len(forwardDest) || count != len(forwardUser) || count != len(forwardIdentity) {
 		return errors.New("-forward-sock, --forward-dest, --forward-user, and --forward-identity must all be specified together, " +
 			"the same number of times, or not at all")
 	}
@@ -182,15 +182,15 @@ func (gvproxy *GvProxy) SetForwards(forwardSocket, forwardDest, forwardUser, for
 			Path:   forwardDest[i],
 		}
 		forward := Forward{
-			socketPath: forwardSocket[i],
-			src:        src,
-			dest:       dest,
-			identity:   forwardIdentity[i],
+			SocketPath: forwardSocket[i],
+			Src:        src,
+			Dest:       dest,
+			Identity:   forwardIdentity[i],
 		}
 		forwards = append(forwards, forward)
 	}
 
-	gvproxy.forwards = forwards
+	gvproxy.Forwards = forwards
 
 	return nil
 }
