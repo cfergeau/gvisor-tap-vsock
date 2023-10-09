@@ -143,7 +143,7 @@ type Forward struct {
 	identity   string
 }
 
-func (gvproxy *GvProxy) SetForwards(forwardSocket, forwardDest, forwardUser, forwardIdentity []string, sshHostPort string) error {
+func (gvproxy *GvProxy) SetForwards(forwardSocket, forwardDest, forwardUser, forwardIdentity []string, sshHostAndPort string) error {
 	var forwards []Forward
 
 	count := len(forwardSocket)
@@ -178,7 +178,7 @@ func (gvproxy *GvProxy) SetForwards(forwardSocket, forwardDest, forwardUser, for
 		dest := &url.URL{
 			Scheme: "ssh",
 			User:   url.User(forwardUser[i]),
-			Host:   sshHostPort,
+			Host:   sshHostAndPort,
 			Path:   forwardDest[i],
 		}
 		forward := Forward{

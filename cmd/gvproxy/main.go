@@ -46,8 +46,8 @@ var (
 )
 
 const (
-	gatewayIP   = "192.168.127.1"
-	sshHostPort = "192.168.127.2:22"
+	gatewayIP      = "192.168.127.1"
+	sshHostAndPort = "192.168.127.2:22"
 )
 
 func main() {
@@ -114,7 +114,7 @@ func main() {
 		exitWithError(err)
 	}
 
-	if err := gvproxy.SetForwards(forwardSocket, forwardDest, forwardUser, forwardIdentify, sshHostPort); err != nil {
+	if err := gvproxy.SetForwards(forwardSocket, forwardDest, forwardUser, forwardIdentify, sshHostAndPort); err != nil {
 		exitWithError(err)
 	}
 
