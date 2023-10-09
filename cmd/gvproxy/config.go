@@ -83,11 +83,11 @@ func defaultConfig(gvproxy *GvProxy) Config {
 			hostIP: "127.0.0.1",
 		},
 		GatewayVirtualIPs: []string{hostIP},
-		VpnKitUUIDMacAddresses: map[string]string{
-			"c3d68012-0208-11ea-9fd7-f2189899ab08": "5a:94:ef:e4:0c:ee",
-		},
-		Protocol: gvproxy.Protocol(),
+		Protocol:          gvproxy.Protocol(),
 	}
 
+	if config.Protocol == types.HyperKitProtocol {
+		config.VpnKitUUIDMacAddresses["c3d68012-0208-11ea-9fd7-f2189899ab08"] = "5a:94:ef:e4:0c:ee"
+	}
 	return config
 }
