@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/signal"
 	"runtime"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -145,6 +146,9 @@ func main() {
 		exitWithError(err)
 	}
 	if err := config.SetSearchDomains(searchDomains()); err != nil {
+		exitWithError(err)
+	}
+	if err := config.AddForward(net.JoinHostPort("127.0.0.1", strconv.Itoa(sshPort)), sshHostAndPort); err != nil {
 		exitWithError(err)
 	}
 

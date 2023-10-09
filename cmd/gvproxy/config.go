@@ -2,7 +2,6 @@ package main
 
 import (
 	"net"
-	"strconv"
 
 	"github.com/containers/gvisor-tap-vsock/pkg/types"
 )
@@ -30,6 +29,11 @@ func (cfg *Config) SetMTU(mtu int) error {
 func (cfg *Config) SetSearchDomains(searchDomains []string) error {
 	cfg.DNSSearchDomains = searchDomains
 
+	return nil
+}
+
+func (cfg *Config) AddForward(src, dest string) error {
+	cfg.Forwards[src] = dest
 	return nil
 }
 
@@ -79,9 +83,6 @@ func defaultConfig(gvproxy *GvProxy) Config {
 					},
 				},
 			},
-		},
-		Forwards: map[string]string{
-			net.JoinHostPort("127.0.0.1", strconv.Itoa(sshPort)): sshHostAndPort,
 		},
 		NAT: map[string]string{
 			hostIP: "127.0.0.1",
