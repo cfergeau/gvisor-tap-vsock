@@ -35,9 +35,11 @@ func (cfg *Config) SetSearchDomains(searchDomains []string) error {
 
 func defaultConfig(gvproxy *GvProxy) Config {
 	const (
-		hostIP  = "192.168.127.254"
-		host    = "host"
-		gateway = "gateway"
+		hostIP       = "192.168.127.254"
+		vmIP         = "192.168.127.2"
+		vmMacAddress = "5a:94:ef:e4:0c:ee"
+		host         = "host"
+		gateway      = "gateway"
 	)
 
 	config := Config{
@@ -46,7 +48,7 @@ func defaultConfig(gvproxy *GvProxy) Config {
 		GatewayIP:         gatewayIP,
 		GatewayMacAddress: "5a:94:ef:e4:0c:dd",
 		DHCPStaticLeases: map[string]string{
-			"192.168.127.2": "5a:94:ef:e4:0c:ee",
+			vmIP: vmMacAddress,
 		},
 		DNS: []types.Zone{
 			{
@@ -87,7 +89,7 @@ func defaultConfig(gvproxy *GvProxy) Config {
 	}
 
 	if config.Protocol == types.HyperKitProtocol {
-		config.VpnKitUUIDMacAddresses["c3d68012-0208-11ea-9fd7-f2189899ab08"] = "5a:94:ef:e4:0c:ee"
+		config.VpnKitUUIDMacAddresses["c3d68012-0208-11ea-9fd7-f2189899ab08"] = vmMacAddress
 	}
 	return config
 }
