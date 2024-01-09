@@ -1,4 +1,4 @@
-// Copyright 2018 The gVisor Authors.
+// Copyright 2023 The gVisor Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,17 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//go:build !linux
-// +build !linux
+//go:build !goexperiment.exectracer2
 
-package rand
+package sync
 
-import "crypto/rand"
+// TraceBlockReason constants, from Go's src/runtime/trace.go.
+const (
+	TraceBlockSelect TraceBlockReason = traceEvGoBlockSelect // +checkconst runtime traceBlockSelect
+	TraceBlockSync                    = traceEvGoBlockSync   // +checkconst runtime traceBlockSync
+)
 
-// Reader is the default reader.
-var Reader = rand.Reader
-
-// Read implements io.Reader.Read.
-func Read(b []byte) (int, error) {
-	return rand.Read(b)
-}
+// Tracer event types, from Go's src/runtime/trace.go.
+const (
+	traceEvGoBlockSelect = 24 // +checkconst runtime traceEvGoBlockSelect
+	traceEvGoBlockSync   = 25 // +checkconst runtime traceEvGoBlockSync
+)
