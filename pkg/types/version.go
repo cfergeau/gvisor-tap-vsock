@@ -45,7 +45,7 @@ func moduleVersion() string {
 		return gitArchiveVersion
 	// This will be set when building from git using make
 	case gitVersion != "":
-		return gitVersion
+		return fmt.Sprintf("fromGit %s", gitVersion)
 	// moduleVersionFromBuildInfo() will be set when using `go install`
 	default:
 		return moduleVersionFromBuildInfo()
@@ -60,5 +60,5 @@ func moduleVersionFromBuildInfo() string {
 	if info.Main.Version == "(devel)" {
 		return ""
 	}
-	return info.Main.Version
+	return fmt.Sprintf("mVFBI: %s", info.Main.Version)
 }
