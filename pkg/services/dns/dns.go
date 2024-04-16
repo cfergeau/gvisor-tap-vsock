@@ -8,7 +8,6 @@ import (
 	"os"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/containers/gvisor-tap-vsock/pkg/types"
 	"github.com/miekg/dns"
@@ -23,7 +22,6 @@ type dnsHandler struct {
 }
 
 func newDNSHandler(zones []types.Zone) *dnsHandler {
-
 	dnsClient, nameserver := readAndCreateClient()
 
 	return &dnsHandler{
@@ -31,11 +29,9 @@ func newDNSHandler(zones []types.Zone) *dnsHandler {
 		dnsClient:  dnsClient,
 		nameserver: nameserver,
 	}
-
 }
 
 func readAndCreateClient() (*dns.Client, string) {
-
 	nameserver, port, err := GetDNSHostAndPort()
 	if err != nil {
 		os.Exit(2)
@@ -47,11 +43,6 @@ func readAndCreateClient() (*dns.Client, string) {
 		nameserver = dns.Fqdn(nameserver) + ":" + port
 	}
 	client := new(dns.Client)
-	client.Net = "udp"
-
-	client.DialTimeout = 2 * time.Second
-	client.ReadTimeout = 2 * time.Second
-	client.WriteTimeout = 2 * time.Second
 
 	return client, nameserver
 }
