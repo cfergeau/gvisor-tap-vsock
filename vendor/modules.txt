@@ -125,6 +125,7 @@ github.com/songgao/water
 # github.com/stretchr/testify v1.9.0
 ## explicit; go 1.17
 github.com/stretchr/testify/assert
+github.com/stretchr/testify/require
 # github.com/u-root/uio v0.0.0-20210528114334-82958018845c
 ## explicit; go 1.15
 github.com/u-root/uio/rand
