@@ -283,12 +283,12 @@ func startDNSServer() (string, func(), error) {
 
 	go func() {
 		if err := server.Serve(); err != nil {
-			log.Error(err)
+			log.Errorf("serve UDP error: %T %s", err, err)
 		}
 	}()
 	go func() {
 		if err := server.ServeTCP(); err != nil {
-			log.Error(err)
+			log.Errorf("serve TCP error: %T %s", err, err)
 		}
 	}()
 	return "127.0.0.1:5354", func() { udpConn.Close(); tcpLn.Close() }, nil
