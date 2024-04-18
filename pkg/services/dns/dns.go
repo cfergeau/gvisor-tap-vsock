@@ -141,7 +141,7 @@ func (h *dnsHandler) addAnswers(m *dns.Msg) {
 
 		if err != nil {
 			m.Rcode = dns.RcodeNameError
-			fmt.Fprintf(os.Stderr, "Error: %v \n", err)
+			log.Warnf("dnsClient.Exchange Error: %v \n", err)
 			return
 		}
 
