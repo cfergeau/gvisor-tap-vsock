@@ -63,10 +63,14 @@ func (h *dnsHandler) handle(w dns.ResponseWriter, r *dns.Msg, responseMessageSiz
 }
 
 func (h *dnsHandler) handleTCP(w dns.ResponseWriter, r *dns.Msg) {
+	// needs to be handled in a better way, handleTCP/handleUDP can run concurrently so this change is racy
+	// h.dnsClient.Net = "tcp"
 	h.handle(w, r, dns.MaxMsgSize)
 }
 
 func (h *dnsHandler) handleUDP(w dns.ResponseWriter, r *dns.Msg) {
+	// needs to be handled in a better way, handleTCP/handleUDP can run concurrently so this change is racy
+	// h.dnsClient.Net = "udp"
 	h.handle(w, r, dns.MinMsgSize)
 }
 
