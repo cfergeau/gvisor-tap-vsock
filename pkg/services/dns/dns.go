@@ -48,10 +48,7 @@ func readAndCreateClient() (*dns.Client, string) {
 }
 
 func (h *dnsHandler) handle(w dns.ResponseWriter, r *dns.Msg, responseMessageSize int) {
-	m := new(dns.Msg)
-	m.SetReply(r)
-	m.RecursionAvailable = true
-	h.addAnswers(m)
+	m := h.addAnswers(r)
 	edns0 := r.IsEdns0()
 	if edns0 != nil {
 		responseMessageSize = int(edns0.UDPSize())
@@ -119,37 +116,24 @@ func (h *dnsHandler) addLocalAnswers(m *dns.Msg, q dns.Question) bool {
 	return false
 }
 
-func (h *dnsHandler) addAnswers(m *dns.Msg) {
-	for _, q := range m.Question {
+func (h *dnsHandler) addAnswers(r *dns.Msg) *dns.Msg {
+	m := new(dns.Msg)
+	m.SetReply(r)
+	m.RecursionAvailable = true
+
+	for _, q := range r.Question {
 		if done := h.addLocalAnswers(m, q); done {
-			return
+			return m
 		}
-
-		// need to create new message struct, as reusing original message struct leading
-		// to request errors
-		message := &dns.Msg{
-			MsgHdr: dns.MsgHdr{
-				Authoritative:     m.Authoritative,
-				AuthenticatedData: m.AuthenticatedData,
-				CheckingDisabled:  m.CheckingDisabled,
-				RecursionDesired:  m.RecursionDesired,
-				Opcode:            m.Opcode,
-			},
-			Question: make([]dns.Question, 1),
-		}
-		message.Question[0] = q
-		message.Id = dns.Id()
-
-		r, _, err := h.dnsClient.Exchange(message, h.nameserver)
-
-		if err != nil {
-			m.Rcode = dns.RcodeNameError
-			log.Warnf("dnsClient.Exchange Error: %v \n", err)
-			return
-		}
-
-		m.Answer = append(m.Answer, r.Answer...)
 	}
+	// there were no local answers for the request
+	r, _, err := h.dnsClient.Exchange(r, h.nameserver)
+	if err != nil {
+		m.Rcode = dns.RcodeNameError
+		return m
+	}
+
+	return r
 }
 
 type Server struct {
