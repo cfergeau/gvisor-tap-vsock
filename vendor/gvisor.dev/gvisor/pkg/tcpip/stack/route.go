@@ -101,6 +101,11 @@ func (r *Route) Loop() PacketLooping {
 	return r.routeInfo.Loop
 }
 
+// OutgoingNIC returns the route's outgoing NIC.
+func (r *Route) OutgoingNIC() tcpip.NICID {
+	return r.outgoingNIC.id
+}
+
 // RouteInfo contains all of Route's exported fields.
 //
 // +stateify savable
@@ -306,10 +311,10 @@ func (r *Route) RequiresTXTransportChecksum() bool {
 	return r.outgoingNIC.NetworkLinkEndpoint.Capabilities()&CapabilityTXChecksumOffload == 0
 }
 
-// HasGvisorGSOCapability returns true if the route supports gVisor GSO.
-func (r *Route) HasGvisorGSOCapability() bool {
+// HasGVisorGSOCapability returns true if the route supports gVisor GSO.
+func (r *Route) HasGVisorGSOCapability() bool {
 	if gso, ok := r.outgoingNIC.NetworkLinkEndpoint.(GSOEndpoint); ok {
-		return gso.SupportedGSO() == GvisorGSOSupported
+		return gso.SupportedGSO() == GVisorGSOSupported
 	}
 	return false
 }
@@ -487,7 +492,7 @@ func (r *Route) isValidForOutgoingRLocked() bool {
 }
 
 // WritePacket writes the packet through the given route.
-func (r *Route) WritePacket(params NetworkHeaderParams, pkt PacketBufferPtr) tcpip.Error {
+func (r *Route) WritePacket(params NetworkHeaderParams, pkt *PacketBuffer) tcpip.Error {
 	if !r.isValidForOutgoing() {
 		return &tcpip.ErrInvalidEndpointState{}
 	}
@@ -497,7 +502,7 @@ func (r *Route) WritePacket(params NetworkHeaderParams, pkt PacketBufferPtr) tcp
 
 // WriteHeaderIncludedPacket writes a packet already containing a network
 // header through the given route.
-func (r *Route) WriteHeaderIncludedPacket(pkt PacketBufferPtr) tcpip.Error {
+func (r *Route) WriteHeaderIncludedPacket(pkt *PacketBuffer) tcpip.Error {
 	if !r.isValidForOutgoing() {
 		return &tcpip.ErrInvalidEndpointState{}
 	}

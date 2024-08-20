@@ -78,7 +78,12 @@ type nic struct {
 
 	qDisc QueueingDiscipline
 
-	gro groDispatcher
+	// deliverLinkPackets specifies whether this NIC delivers packets to
+	// packet sockets. It is immutable.
+	//
+	// deliverLinkPackets is off by default because some users already
+	// deliver link packets by explicitly calling nic.DeliverLinkPackets.
+	deliverLinkPackets bool
 }
 
 // makeNICStats initializes the NIC statistics and associates them to the global
@@ -140,7 +145,7 @@ type delegatingQueueingDiscipline struct {
 func (*delegatingQueueingDiscipline) Close() {}
 
 // WritePacket passes the packet through to the underlying LinkWriter's WritePackets.
-func (qDisc *delegatingQueueingDiscipline) WritePacket(pkt PacketBufferPtr) tcpip.Error {
+func (qDisc *delegatingQueueingDiscipline) WritePacket(pkt *PacketBuffer) tcpip.Error {
 	var pkts PacketBufferList
 	pkts.PushBack(pkt)
 	_, err := qDisc.LinkWriter.WritePackets(pkts)
@@ -174,6 +179,7 @@ func newNIC(stack *Stack, id tcpip.NICID, ep LinkEndpoint, opts NICOptions) *nic
 		linkAddrResolvers:         make(map[tcpip.NetworkProtocolNumber]*linkResolver),
 		duplicateAddressDetectors: make(map[tcpip.NetworkProtocolNumber]DuplicateAddressDetector),
 		qDisc:                     qDisc,
+		deliverLinkPackets:        opts.DeliverLinkPackets,
 	}
 	nic.linkResQueue.init(nic)
 
@@ -202,7 +208,6 @@ func newNIC(stack *Stack, id tcpip.NICID, ep LinkEndpoint, opts NICOptions) *nic
 		}
 	}
 
-	nic.gro.init(opts.GROTimeout)
 	nic.NetworkLinkEndpoint.Attach(nic)
 
 	return nic
@@ -309,9 +314,6 @@ func (n *nic) remove() tcpip.Error {
 
 	n.enableDisableMu.Unlock()
 
-	// Shutdown GRO.
-	n.gro.close()
-
 	// Drain and drop any packets pending link resolution.
 	// We must not hold n.enableDisableMu here.
 	n.linkResQueue.cancel()
@@ -339,7 +341,7 @@ func (n *nic) IsLoopback() bool {
 }
 
 // WritePacket implements NetworkEndpoint.
-func (n *nic) WritePacket(r *Route, pkt PacketBufferPtr) tcpip.Error {
+func (n *nic) WritePacket(r *Route, pkt *PacketBuffer) tcpip.Error {
 	routeInfo, _, err := r.resolvedFields(nil)
 	switch err.(type) {
 	case nil:
@@ -370,7 +372,7 @@ func (n *nic) WritePacket(r *Route, pkt PacketBufferPtr) tcpip.Error {
 }
 
 // WritePacketToRemote implements NetworkInterface.
-func (n *nic) WritePacketToRemote(remoteLinkAddr tcpip.LinkAddress, pkt PacketBufferPtr) tcpip.Error {
+func (n *nic) WritePacketToRemote(remoteLinkAddr tcpip.LinkAddress, pkt *PacketBuffer) tcpip.Error {
 	pkt.EgressRoute = RouteInfo{
 		routeInfo: routeInfo{
 			NetProto:         pkt.NetworkProtocolNumber,
@@ -381,21 +383,26 @@ func (n *nic) WritePacketToRemote(remoteLinkAddr tcpip.LinkAddress, pkt PacketBu
 	return n.writePacket(pkt)
 }
 
-func (n *nic) writePacket(pkt PacketBufferPtr) tcpip.Error {
+func (n *nic) writePacket(pkt *PacketBuffer) tcpip.Error {
 	n.NetworkLinkEndpoint.AddHeader(pkt)
 	return n.writeRawPacket(pkt)
 }
 
-func (n *nic) writeRawPacketWithLinkHeaderInPayload(pkt PacketBufferPtr) tcpip.Error {
+func (n *nic) writeRawPacketWithLinkHeaderInPayload(pkt *PacketBuffer) tcpip.Error {
 	if !n.NetworkLinkEndpoint.ParseHeader(pkt) {
 		return &tcpip.ErrMalformedHeader{}
 	}
 	return n.writeRawPacket(pkt)
 }
 
-func (n *nic) writeRawPacket(pkt PacketBufferPtr) tcpip.Error {
+func (n *nic) writeRawPacket(pkt *PacketBuffer) tcpip.Error {
 	// Always an outgoing packet.
 	pkt.PktType = tcpip.PacketOutgoing
+
+	if n.deliverLinkPackets {
+		n.DeliverLinkPacket(pkt.NetworkProtocolNumber, pkt)
+	}
+
 	if err := n.qDisc.WritePacket(pkt); err != nil {
 		if _, ok := err.(*tcpip.ErrNoBufferSpace); ok {
 			n.stats.txPacketsDroppedNoBufferSpace.Increment()
@@ -420,7 +427,7 @@ func (n *nic) Spoofing() bool {
 
 // primaryAddress returns an address that can be used to communicate with
 // remoteAddr.
-func (n *nic) primaryEndpoint(protocol tcpip.NetworkProtocolNumber, remoteAddr tcpip.Address) AssignableAddressEndpoint {
+func (n *nic) primaryEndpoint(protocol tcpip.NetworkProtocolNumber, remoteAddr, srcHint tcpip.Address) AssignableAddressEndpoint {
 	ep := n.getNetworkEndpoint(protocol)
 	if ep == nil {
 		return nil
@@ -431,7 +438,7 @@ func (n *nic) primaryEndpoint(protocol tcpip.NetworkProtocolNumber, remoteAddr t
 		return nil
 	}
 
-	return addressableEndpoint.AcquireOutgoingPrimaryAddress(remoteAddr, n.Spoofing())
+	return addressableEndpoint.AcquireOutgoingPrimaryAddress(remoteAddr, srcHint, n.Spoofing())
 }
 
 type getAddressBehaviour int
@@ -498,7 +505,7 @@ func (n *nic) getAddressOrCreateTempInner(protocol tcpip.NetworkProtocolNumber, 
 		return nil
 	}
 
-	return addressableEndpoint.AcquireAssignedAddress(address, createTemp, peb)
+	return addressableEndpoint.AcquireAssignedAddress(address, createTemp, peb, false)
 }
 
 // addAddress adds a new address to n, so that it starts accepting packets
@@ -715,7 +722,7 @@ func (n *nic) isInGroup(addr tcpip.Address) bool {
 // DeliverNetworkPacket finds the appropriate network protocol endpoint and
 // hands the packet over for further processing. This function is called when
 // the NIC receives a packet from the link endpoint.
-func (n *nic) DeliverNetworkPacket(protocol tcpip.NetworkProtocolNumber, pkt PacketBufferPtr) {
+func (n *nic) DeliverNetworkPacket(protocol tcpip.NetworkProtocolNumber, pkt *PacketBuffer) {
 	enabled := n.Enabled()
 	// If the NIC is not yet enabled, don't receive any packets.
 	if !enabled {
@@ -735,19 +742,23 @@ func (n *nic) DeliverNetworkPacket(protocol tcpip.NetworkProtocolNumber, pkt Pac
 
 	pkt.RXChecksumValidated = n.NetworkLinkEndpoint.Capabilities()&CapabilityRXChecksumOffload != 0
 
-	n.gro.dispatch(pkt, protocol, networkEndpoint)
+	if n.deliverLinkPackets {
+		n.DeliverLinkPacket(protocol, pkt)
+	}
+
+	networkEndpoint.HandlePacket(pkt)
 }
 
-func (n *nic) DeliverLinkPacket(protocol tcpip.NetworkProtocolNumber, pkt PacketBufferPtr) {
+func (n *nic) DeliverLinkPacket(protocol tcpip.NetworkProtocolNumber, pkt *PacketBuffer) {
 	// Deliver to interested packet endpoints without holding NIC lock.
-	var packetEPPkt PacketBufferPtr
+	var packetEPPkt *PacketBuffer
 	defer func() {
-		if !packetEPPkt.IsNil() {
+		if packetEPPkt != nil {
 			packetEPPkt.DecRef()
 		}
 	}()
 	deliverPacketEPs := func(ep PacketEndpoint) {
-		if packetEPPkt.IsNil() {
+		if packetEPPkt == nil {
 			// Packet endpoints hold the full packet.
 			//
 			// We perform a deep copy because higher-level endpoints may point to
@@ -797,7 +808,7 @@ func (n *nic) DeliverLinkPacket(protocol tcpip.NetworkProtocolNumber, pkt Packet
 
 // DeliverTransportPacket delivers the packets to the appropriate transport
 // protocol endpoint.
-func (n *nic) DeliverTransportPacket(protocol tcpip.TransportProtocolNumber, pkt PacketBufferPtr) TransportPacketDisposition {
+func (n *nic) DeliverTransportPacket(protocol tcpip.TransportProtocolNumber, pkt *PacketBuffer) TransportPacketDisposition {
 	state, ok := n.stack.transportProtocols[protocol]
 	if !ok {
 		n.stats.unknownL4ProtocolRcvdPacketCounts.Increment(uint64(protocol))
@@ -857,7 +868,7 @@ func (n *nic) DeliverTransportPacket(protocol tcpip.TransportProtocolNumber, pkt
 }
 
 // DeliverTransportError implements TransportDispatcher.
-func (n *nic) DeliverTransportError(local, remote tcpip.Address, net tcpip.NetworkProtocolNumber, trans tcpip.TransportProtocolNumber, transErr TransportError, pkt PacketBufferPtr) {
+func (n *nic) DeliverTransportError(local, remote tcpip.Address, net tcpip.NetworkProtocolNumber, trans tcpip.TransportProtocolNumber, transErr TransportError, pkt *PacketBuffer) {
 	state, ok := n.stack.transportProtocols[trans]
 	if !ok {
 		return
@@ -885,7 +896,7 @@ func (n *nic) DeliverTransportError(local, remote tcpip.Address, net tcpip.Netwo
 }
 
 // DeliverRawPacket implements TransportDispatcher.
-func (n *nic) DeliverRawPacket(protocol tcpip.TransportProtocolNumber, pkt PacketBufferPtr) {
+func (n *nic) DeliverRawPacket(protocol tcpip.TransportProtocolNumber, pkt *PacketBuffer) {
 	// For ICMPv4 only we validate the header length for compatibility with
 	// raw(7) ICMP_FILTER. The same check is made in Linux here:
 	// https://github.com/torvalds/linux/blob/70585216/net/ipv4/raw.c#L189.
@@ -928,7 +939,7 @@ func (n *nic) setNUDConfigs(protocol tcpip.NetworkProtocolNumber, c NUDConfigura
 	return &tcpip.ErrNotSupported{}
 }
 
-func (n *nic) registerPacketEndpoint(netProto tcpip.NetworkProtocolNumber, ep PacketEndpoint) tcpip.Error {
+func (n *nic) registerPacketEndpoint(netProto tcpip.NetworkProtocolNumber, ep PacketEndpoint) {
 	n.packetEPsMu.Lock()
 	defer n.packetEPsMu.Unlock()
 
@@ -938,8 +949,6 @@ func (n *nic) registerPacketEndpoint(netProto tcpip.NetworkProtocolNumber, ep Pa
 		n.packetEPs[netProto] = eps
 	}
 	eps.add(ep)
-
-	return nil
 }
 
 func (n *nic) unregisterPacketEndpoint(netProto tcpip.NetworkProtocolNumber, ep PacketEndpoint) {

@@ -1,4 +1,4 @@
-// Copyright 2018 The gVisor Authors.
+// Copyright 2023 The gVisor Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,27 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "textflag.h"
+//go:build !goexperiment.exectracer2
 
-TEXT ·native(SB),NOSPLIT|NOFRAME,$0-24
-	MOVL arg_Eax+0(FP), AX
-	MOVL arg_Ecx+4(FP), CX
-	CPUID
-	MOVL AX, ret_Eax+8(FP)
-	MOVL BX, ret_Ebx+12(FP)
-	MOVL CX, ret_Ecx+16(FP)
-	MOVL DX, ret_Edx+20(FP)
-	RET
+package sync
 
-// xgetbv reads an extended control register.
-//
-// The code corresponds to:
-//
-// 	xgetbv
-//
-TEXT ·xgetbv(SB),NOSPLIT|NOFRAME,$0-16
-	MOVQ reg+0(FP), CX
-	BYTE $0x0f; BYTE $0x01; BYTE $0xd0;
-	MOVL AX, ret+8(FP)
-	MOVL DX, ret+12(FP)
-	RET
+// TraceBlockReason constants, from Go's src/runtime/trace.go.
+const (
+	TraceBlockSelect TraceBlockReason = traceEvGoBlockSelect // +checkconst runtime traceBlockSelect
+	TraceBlockSync                    = traceEvGoBlockSync   // +checkconst runtime traceBlockSync
+)
+
+// Tracer event types, from Go's src/runtime/trace.go.
+const (
+	traceEvGoBlockSelect = 24 // +checkconst runtime traceEvGoBlockSelect
+	traceEvGoBlockSync   = 25 // +checkconst runtime traceEvGoBlockSync
+)
