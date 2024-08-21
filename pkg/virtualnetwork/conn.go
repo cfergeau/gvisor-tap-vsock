@@ -19,7 +19,7 @@ func (n *VirtualNetwork) Dial(network, addr string) (net.Conn, error) {
 	return gonet.DialTCP(n.stack, tcpip.FullAddress{
 		NIC:  1,
 		Addr: tcpip.AddrFrom4Slice(ip.To4()),
-		Port: uint16(port),
+		Port: port,
 	}, ipv4.ProtocolNumber)
 }
 
@@ -33,7 +33,7 @@ func (n *VirtualNetwork) DialContextTCP(ctx context.Context, addr string) (net.C
 		tcpip.FullAddress{
 			NIC:  1,
 			Addr: tcpip.AddrFrom4Slice(ip.To4()),
-			Port: uint16(port),
+			Port: port,
 		}, ipv4.ProtocolNumber)
 }
 
@@ -45,6 +45,6 @@ func (n *VirtualNetwork) Listen(network, addr string) (net.Listener, error) {
 	return gonet.ListenTCP(n.stack, tcpip.FullAddress{
 		NIC:  1,
 		Addr: tcpip.AddrFrom4Slice(ip.To4()),
-		Port: uint16(port),
+		Port: port,
 	}, ipv4.ProtocolNumber)
 }

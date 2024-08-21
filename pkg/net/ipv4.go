@@ -6,7 +6,7 @@ import (
 	"strconv"
 )
 
-func SplitIPPort(network string, addr string) (net.IP, uint64, error) {
+func SplitIPPort(network string, addr string) (net.IP, uint16, error) {
 	if network != "tcp" {
 		return nil, 0, errors.New("only tcp is supported")
 	}
@@ -22,5 +22,5 @@ func SplitIPPort(network string, addr string) (net.IP, uint64, error) {
 	if ip == nil {
 		return nil, 0, errors.New("invalid address, must be an IP")
 	}
-	return ip, port, nil
+	return ip, uint16(port), nil //#nosec G115 -- strconv.ParseUint(.., .., 16) guarantees no overflow
 }
