@@ -1,6 +1,7 @@
 package types
 
 import (
+	"fmt"
 	"os/exec"
 	"strconv"
 )
@@ -11,7 +12,7 @@ type GvproxyCommand struct {
 
 	// Length of packet
 	// Larger packets means less packets to exchange for the same amount of data (and less protocol overhead)
-	MTU int
+	MTU uint16
 
 	// Values passed in by forward-xxx flags in commandline (forward-xxx:info)
 	forwardInfo map[string][]string
@@ -166,7 +167,7 @@ func (c *GvproxyCommand) ToCmdline() []string {
 	}
 
 	// mtu
-	args = append(args, "-mtu", strconv.Itoa(c.MTU))
+	args = append(args, "-mtu", fmt.Sprintf("%d", c.MTU))
 
 	// ssh-port
 	args = append(args, "-ssh-port", strconv.Itoa(c.SSHPort))
