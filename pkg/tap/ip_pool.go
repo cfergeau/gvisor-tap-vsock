@@ -2,6 +2,8 @@ package tap
 
 import (
 	"errors"
+	"fmt"
+	"math"
 	"net"
 	"sync"
 
@@ -49,8 +51,11 @@ func (p *IPPool) GetOrAssign(mac string) (net.IP, error) {
 	}
 
 	var i uint64
+	if p.count > math.MaxInt {
+		return nil, fmt.Errorf("IP pool is too large (%d entries)", p.count)
+	}
 	for i = 1; i < p.count; i++ {
-		candidate, err := cidr.Host(p.base, int(i))
+		candidate, err := cidr.Host(p.base, int(i)) //#nosec G115 - 'p.count' was compared against MaxInt
 		if err != nil {
 			continue
 		}
