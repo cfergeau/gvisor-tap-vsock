@@ -175,7 +175,7 @@ func rx(conn net.Conn, tap *water.Interface, errCh chan error, mtu int) {
 			log.Info(packet.String())
 		}
 
-		binary.LittleEndian.PutUint16(size, uint16(n))
+		binary.LittleEndian.PutUint16(size, uint16(n)) //#nosec G115 - ethernet frame size is less than math.MaxUint16
 		if _, err := conn.Write(append(size, frame...)); err != nil {
 			errCh <- errors.Wrap(err, "cannot write size and packet to socket")
 			return
