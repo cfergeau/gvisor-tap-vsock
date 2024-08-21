@@ -35,7 +35,7 @@ type Switch struct {
 	Received uint64
 
 	debug               bool
-	maxTransmissionUnit int
+	maxTransmissionUnit uint16
 
 	nextConnID int
 	conns      map[int]protocolConn
@@ -49,7 +49,7 @@ type Switch struct {
 	gateway VirtualDevice
 }
 
-func NewSwitch(debug bool, mtu int) *Switch {
+func NewSwitch(debug bool, mtu uint16) *Switch {
 	return &Switch{
 		debug:               debug,
 		maxTransmissionUnit: mtu,

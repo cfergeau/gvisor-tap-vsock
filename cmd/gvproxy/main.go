@@ -5,6 +5,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"math"
 	"net"
 	"net/http"
 	"net/http/pprof"
@@ -31,7 +32,7 @@ import (
 
 var (
 	debug           bool
-	mtu             int
+	mtu             uint
 	endpoints       arrayFlags
 	vpnkitSocket    string
 	qemuSocket      string
@@ -61,7 +62,7 @@ func main() {
 	version.AddFlag()
 	flag.Var(&endpoints, "listen", "control endpoint")
 	flag.BoolVar(&debug, "debug", false, "Print debug info")
-	flag.IntVar(&mtu, "mtu", 1500, "Set the MTU")
+	flag.UintVar(&mtu, "mtu", 1500, "Set the MTU")
 	flag.IntVar(&sshPort, "ssh-port", 2222, "Port to access the guest virtual machine. Must be between 1024 and 65535")
 	flag.StringVar(&vpnkitSocket, "listen-vpnkit", "", "VPNKit socket to be used by Hyperkit")
 	flag.StringVar(&qemuSocket, "listen-qemu", "", "Socket to be used by Qemu")
@@ -79,6 +80,11 @@ func main() {
 	if version.ShowVersion() {
 		fmt.Println(version.String())
 		os.Exit(0)
+	}
+
+	if mtu > math.MaxUint16 {
+		fmt.Printf("invalid MTU value: %d\n", mtu)
+		os.Exit(1)
 	}
 
 	// If the user provides a log-file, we re-direct log messages
@@ -214,7 +220,7 @@ func main() {
 	config := types.Configuration{
 		Debug:             debug,
 		CaptureFile:       captureFile(),
-		MTU:               mtu,
+		MTU:               uint16(mtu), //#nosec G115 - mtu is compared to math.MaxUint16
 		Subnet:            "192.168.127.0/24",
 		GatewayIP:         gatewayIP,
 		GatewayMacAddress: "5a:94:ef:e4:0c:dd",

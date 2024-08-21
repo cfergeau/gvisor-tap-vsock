@@ -14,7 +14,7 @@ type Configuration struct {
 
 	// Length of packet
 	// Larger packets means less packets to exchange for the same amount of data (and less protocol overhead)
-	MTU int
+	MTU uint16
 
 	// Network reserved for the virtual network
 	Subnet string
