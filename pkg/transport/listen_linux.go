@@ -13,20 +13,20 @@ const DefaultURL = "vsock://:1024"
 func listenURL(parsed *url.URL) (net.Listener, error) {
 	switch parsed.Scheme {
 	case "vsock":
-		port, err := strconv.Atoi(parsed.Port())
+		port, err := strconv.ParseUint(parsed.Port(), 10, 32)
 		if err != nil {
 			return nil, err
 		}
 
 		if parsed.Hostname() != "" {
-			cid, err := strconv.Atoi(parsed.Hostname())
+			cid, err := strconv.ParseUint(parsed.Hostname(), 10, 32)
 			if err != nil {
 				return nil, err
 			}
-			return mdlayhervsock.ListenContextID(uint32(cid), uint32(port), nil)
+			return mdlayhervsock.ListenContextID(uint32(cid), uint32(port), nil) //#nosec G115 -- strconv.ParseUint(.., .., 32) guarantees no overflow
 		}
 
-		return mdlayhervsock.Listen(uint32(port), nil)
+		return mdlayhervsock.Listen(uint32(port), nil) //#nosec G115 -- strconv.ParseUint(.., .., 32) guarantees no overflow
 	case "unixpacket":
 		return net.Listen(parsed.Scheme, parsed.Path)
 	default:
