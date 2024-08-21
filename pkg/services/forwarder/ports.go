@@ -11,10 +11,9 @@ import (
 	"net/url"
 	"os"
 	"sort"
-	"strconv"
-	"strings"
 	"sync"
 
+	gvnet "github.com/containers/gvisor-tap-vsock/pkg/net"
 	"github.com/containers/gvisor-tap-vsock/pkg/sshclient"
 	"github.com/containers/gvisor-tap-vsock/pkg/types"
 	log "github.com/sirupsen/logrus"
@@ -369,22 +368,14 @@ func firstValueOrEmpty(x []string) string {
 
 // helper function to build tcpip address
 func tcpipAddress(nicID tcpip.NICID, remote string) (address tcpip.FullAddress, err error) {
-
-	// build the address manual way
-	split := strings.Split(remote, ":")
-	if len(split) != 2 {
-		return address, errors.New("invalid remote addr")
-	}
-
-	port, err := strconv.Atoi(split[1])
+	ip, port, err := gvnet.SplitIPPort("tcp", remote)
 	if err != nil {
 		return address, err
-
 	}
 
 	address = tcpip.FullAddress{
 		NIC:  nicID,
-		Addr: tcpip.AddrFrom4Slice(net.ParseIP(split[0]).To4()),
+		Addr: tcpip.AddrFrom4Slice(ip.To4()),
 		Port: uint16(port),
 	}
 
