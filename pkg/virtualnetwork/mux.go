@@ -53,7 +53,7 @@ func (n *VirtualNetwork) Mux() *http.ServeMux {
 			http.Error(w, "ip is mandatory", http.StatusInternalServerError)
 			return
 		}
-		port, err := strconv.Atoi(r.URL.Query().Get("port"))
+		port, err := strconv.ParseUint(r.URL.Query().Get("port"), 10, 16)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -87,7 +87,7 @@ func (n *VirtualNetwork) Mux() *http.ServeMux {
 				return gonet.DialContextTCP(ctx, n.stack, tcpip.FullAddress{
 					NIC:  1,
 					Addr: tcpip.AddrFrom4Slice(net.ParseIP(ip).To4()),
-					Port: uint16(port),
+					Port: uint16(port), //#nosec G115 -- strconv.ParseUint(.., .., 16) guarantees no overflow
 				}, ipv4.ProtocolNumber)
 			},
 			OnDialError: func(_ net.Conn, dstDialErr error) {
