@@ -71,7 +71,7 @@ func handler(configuration *types.Configuration, ipPool *tap.IPPool) server4.Han
 	}
 }
 
-func dial(s *stack.Stack, nic int) (*gonet.UDPConn, error) {
+func dial(s *stack.Stack, nic tcpip.NICID) (*gonet.UDPConn, error) {
 	var wq waiter.Queue
 	ep, err := s.NewEndpoint(udp.ProtocolNumber, ipv4.ProtocolNumber, &wq)
 	if err != nil {
