@@ -186,6 +186,10 @@ func (e *Switch) txBuf(conn protocolConn, buf []byte) error {
 	e.writeLock.Lock()
 	defer e.writeLock.Unlock()
 
+	// FIXME: protocolImpl should implement `Write`, then the 'stream'
+	// implementations could write size and then the data, and the packet
+	// implementations would only write the data. This would remove the
+	// need for this Stream() test
 	if conn.protocolImpl.Stream() {
 		sizeBuf, err := conn.protocolImpl.(streamProtocol).WriteSize(len(buf))
 		if err != nil {
