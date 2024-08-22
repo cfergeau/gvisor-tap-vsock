@@ -166,9 +166,11 @@ func (e *Switch) txPkt(pkt stack.PacketBufferPtr) error {
 
 func (e *Switch) txBuf(id int, conn protocolConn, buf []byte) error {
 	if conn.protocolImpl.Stream() {
-		size := conn.protocolImpl.(streamProtocol).Buf()
-		conn.protocolImpl.(streamProtocol).Write(size, len(buf))
-		buf = append(size, buf...)
+		sizeBuf, err := conn.protocolImpl.(streamProtocol).WriteSize(len(buf))
+		if err != nil {
+			return err
+		}
+		buf = append(sizeBuf, buf...)
 	}
 	for {
 		if _, err := conn.Write(buf); err != nil {
@@ -227,7 +229,6 @@ loop:
 
 func (e *Switch) rxStream(ctx context.Context, id int, conn net.Conn, sProtocol streamProtocol) error {
 	reader := bufio.NewReader(conn)
-	sizeBuf := sProtocol.Buf()
 loop:
 	for {
 		select {
@@ -236,11 +237,10 @@ loop:
 		default:
 			// passthrough
 		}
-		_, err := io.ReadFull(reader, sizeBuf)
+		size, err := sProtocol.ReadSize(reader)
 		if err != nil {
-			return errors.Wrap(err, "cannot read size from socket")
+			return err
 		}
-		size := sProtocol.Read(sizeBuf)
 
 		buf := make([]byte, size)
 		_, err = io.ReadFull(reader, buf)
