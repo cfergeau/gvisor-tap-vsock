@@ -2,9 +2,9 @@ package tap
 
 import (
 	"encoding/binary"
+	"fmt"
+	"io"
 	"math"
-
-	log "github.com/sirupsen/logrus"
 )
 
 type protocol interface {
@@ -13,9 +13,8 @@ type protocol interface {
 
 type streamProtocol interface {
 	protocol
-	Buf() []byte
-	Write(buf []byte, size int)
-	Read(buf []byte) int
+	ReadSize(io.Reader) (int, error)
+	WriteSize(size int) ([]byte, error)
 }
 
 type hyperkitProtocol struct {
@@ -25,20 +24,23 @@ func (s *hyperkitProtocol) Stream() bool {
 	return true
 }
 
-func (s *hyperkitProtocol) Buf() []byte {
-	return make([]byte, 2)
-}
-
-func (s *hyperkitProtocol) Write(buf []byte, size int) {
-	if size < 0 || size > math.MaxUint16 {
-		log.Warnf("size out of range. Resetting to %d", math.MaxUint16)
-		size = math.MaxUint16
+func (s *hyperkitProtocol) ReadSize(reader io.Reader) (int, error) {
+	var sizeBuf [2]byte
+	_, err := io.ReadFull(reader, sizeBuf[:])
+	if err != nil {
+		return 0, fmt.Errorf("cannot read size from socket: %w", err)
 	}
-	binary.LittleEndian.PutUint16(buf, uint16(size)) //#nosec: G115
+	size := binary.LittleEndian.Uint16(sizeBuf[:])
+	return int(size), nil
 }
 
-func (s *hyperkitProtocol) Read(buf []byte) int {
-	return int(binary.LittleEndian.Uint16(buf[0:2]))
+func (s *hyperkitProtocol) WriteSize(size int) ([]byte, error) {
+	if size < 0 || size > math.MaxUint16 {
+		return nil, fmt.Errorf("size out of uint16 range (%d)", size)
+	}
+	var sizeBuf [2]byte
+	binary.LittleEndian.PutUint16(sizeBuf[:], uint16(size))
+	return sizeBuf[:], nil
 }
 
 type qemuProtocol struct {
@@ -48,20 +50,23 @@ func (s *qemuProtocol) Stream() bool {
 	return true
 }
 
-func (s *qemuProtocol) Buf() []byte {
-	return make([]byte, 4)
-}
-
-func (s *qemuProtocol) Write(buf []byte, size int) {
-	if size > math.MaxInt32 {
-		log.Warnf("size exceeds max limit. Resetting to: %d", math.MaxInt32)
-		size = math.MaxInt32
+func (s *qemuProtocol) ReadSize(reader io.Reader) (int, error) {
+	var sizeBuf [4]byte
+	_, err := io.ReadFull(reader, sizeBuf[:])
+	if err != nil {
+		return 0, fmt.Errorf("cannot read size from socket: %w", err)
 	}
-	binary.BigEndian.PutUint32(buf, uint32(size)) //#nosec: G115. Safely checked
+	size := binary.BigEndian.Uint32(sizeBuf[:])
+	return int(size), nil
 }
 
-func (s *qemuProtocol) Read(buf []byte) int {
-	return int(binary.BigEndian.Uint32(buf[0:4]))
+func (s *qemuProtocol) WriteSize(size int) ([]byte, error) {
+	if size < 0 || size > math.MaxInt32 {
+		return nil, fmt.Errorf("size out of int32 range (%d)", size)
+	}
+	var sizeBuf [4]byte
+	binary.BigEndian.PutUint32(sizeBuf[:], uint32(size))
+	return sizeBuf[:], nil
 }
 
 type bessProtocol struct {
