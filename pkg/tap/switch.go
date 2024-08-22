@@ -171,6 +171,10 @@ func (e *Switch) txPkt(pkt *stack.PacketBuffer) error {
 }
 
 func (e *Switch) txBuf(id int, conn protocolConn, buf []byte) error {
+	// FIXME: protocolImpl should implement `Write`, then the 'stream'
+	// implementations could write size and then the data, and the packet
+	// implementations would only write the data. This would remove the
+	// need for this Stream() test
 	if conn.protocolImpl.Stream() {
 		sizeBuf, err := conn.protocolImpl.(streamProtocol).WriteSize(len(buf))
 		if err != nil {
