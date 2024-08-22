@@ -228,7 +228,7 @@ github.com/golangci/dupl/syntax/golang
 github.com/golangci/gofmt/gofmt
 github.com/golangci/gofmt/gofmt/internal/diff
 github.com/golangci/gofmt/goimports
-# github.com/golangci/golangci-lint v1.60.1
+# github.com/golangci/golangci-lint v1.60.2
 ## explicit; go 1.22.1
 github.com/golangci/golangci-lint/cmd/golangci-lint
 github.com/golangci/golangci-lint/internal/cache

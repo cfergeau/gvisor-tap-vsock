@@ -3,7 +3,7 @@ module github.com/containers/gvisor-tap-vsock/tools
 go 1.22.1
 
 require (
-	github.com/golangci/golangci-lint v1.60.1
+	github.com/golangci/golangci-lint v1.60.2
 	github.com/randall77/makefat v0.0.0-20210315173500-7ddd0e42c844
 )
 
