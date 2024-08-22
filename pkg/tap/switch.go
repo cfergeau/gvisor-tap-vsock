@@ -167,7 +167,9 @@ func (e *Switch) txPkt(pkt stack.PacketBufferPtr) error {
 func (e *Switch) txBuf(id int, conn protocolConn, buf []byte) error {
 	if conn.protocolImpl.Stream() {
 		size := conn.protocolImpl.(streamProtocol).Buf()
-		conn.protocolImpl.(streamProtocol).Write(size, len(buf))
+		if err := conn.protocolImpl.(streamProtocol).Write(size, len(buf)); err != nil {
+			return err
+		}
 		buf = append(size, buf...)
 	}
 	for {
