@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+	"math"
 )
 
 type protocol interface {
@@ -35,7 +36,10 @@ func (s *hyperkitProtocol) ReadSize(reader io.Reader) (int, error) {
 
 func (s *hyperkitProtocol) WriteSize(size int) ([]byte, error) {
 	var sizeBuf [2]byte
-	binary.LittleEndian.PutUint16(sizeBuf[:], uint16(size))
+	if size < 0 || size > math.MaxUint16 {
+		return nil, fmt.Errorf("%d is larger than 16 bits", size)
+	}
+	binary.LittleEndian.PutUint16(sizeBuf[:], uint16(size)) //#nosec G115 - 'size' was compared against MaxUint16
 	return sizeBuf[:], nil
 }
 
@@ -58,7 +62,10 @@ func (s *qemuProtocol) ReadSize(reader io.Reader) (int, error) {
 
 func (s *qemuProtocol) WriteSize(size int) ([]byte, error) {
 	var sizeBuf [4]byte
-	binary.LittleEndian.PutUint32(sizeBuf[:], uint32(size))
+	if size < 0 || size > math.MaxUint32 {
+		return nil, fmt.Errorf("%d is larger than 32 bits", size)
+	}
+	binary.LittleEndian.PutUint32(sizeBuf[:], uint32(size)) //#nosec G115 - 'size' was compared against MaxUint32
 	return sizeBuf[:], nil
 }
 
