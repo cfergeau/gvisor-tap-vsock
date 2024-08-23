@@ -1,11 +1,8 @@
 package tap
 
 import (
-	"bufio"
 	"context"
-	"errors"
 	"fmt"
-	"io"
 	"net"
 	"sync"
 	"sync/atomic"
@@ -14,6 +11,7 @@ import (
 	"github.com/containers/gvisor-tap-vsock/pkg/types"
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
+	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"gvisor.dev/gvisor/pkg/buffer"
 	"gvisor.dev/gvisor/pkg/tcpip"
@@ -39,7 +37,7 @@ type Switch struct {
 	maxTransmissionUnit int
 
 	nextConnID int
-	conns      map[int]protocolConn
+	conns      map[int]hypervisorConn
 	connLock   sync.Mutex
 
 	cam     map[tcpip.LinkAddress]int
@@ -54,7 +52,7 @@ func NewSwitch(debug bool, mtu int) *Switch {
 	return &Switch{
 		debug:               debug,
 		maxTransmissionUnit: mtu,
-		conns:               make(map[int]protocolConn),
+		conns:               make(map[int]hypervisorConn),
 		cam:                 make(map[tcpip.LinkAddress]int),
 	}
 }
@@ -80,7 +78,7 @@ func (e *Switch) DeliverNetworkPacket(_ tcpip.NetworkProtocolNumber, pkt *stack.
 }
 
 func (e *Switch) Accept(ctx context.Context, rawConn net.Conn, protocol types.Protocol) error {
-	conn := protocolConn{Conn: rawConn, protocolImpl: protocolImplementation(protocol)}
+	conn := HypervisorConnNew(rawConn, protocol)
 	log.Debugf("new connection from %s to %s", conn.RemoteAddr().String(), conn.LocalAddr().String())
 	id, failed := e.connect(conn)
 	if failed {
@@ -97,12 +95,13 @@ func (e *Switch) Accept(ctx context.Context, rawConn net.Conn, protocol types.Pr
 	if err := e.rx(ctx, id, conn); err != nil {
 		err := fmt.Errorf("cannot receive packets from %s, disconnecting: %w", conn.RemoteAddr().String(), err)
 		log.Error(err)
+
 		return err
 	}
 	return nil
 }
 
-func (e *Switch) connect(conn protocolConn) (int, bool) {
+func (e *Switch) connect(conn hypervisorConn) (int, bool) {
 	e.connLock.Lock()
 	defer e.connLock.Unlock()
 
@@ -114,10 +113,6 @@ func (e *Switch) connect(conn protocolConn) (int, bool) {
 }
 
 func (e *Switch) tx(pkt *stack.PacketBuffer) error {
-	return e.txPkt(pkt)
-}
-
-func (e *Switch) txPkt(pkt *stack.PacketBuffer) error {
 	e.writeLock.Lock()
 	defer e.writeLock.Unlock()
 
@@ -170,20 +165,9 @@ func (e *Switch) txPkt(pkt *stack.PacketBuffer) error {
 	return nil
 }
 
-func (e *Switch) txBuf(id int, conn protocolConn, buf []byte) error {
-	// FIXME: protocolImpl should implement `Write`, then the 'stream'
-	// implementations could write size and then the data, and the packet
-	// implementations would only write the data. This would remove the
-	// need for this Stream() test
-	if conn.protocolImpl.Stream() {
-		sizeBuf, err := conn.protocolImpl.(streamProtocol).WriteSize(len(buf))
-		if err != nil {
-			return err
-		}
-		buf = append(sizeBuf, buf...)
-	}
+func (e *Switch) txBuf(id int, conn hypervisorConn, buf []byte) error {
 	for {
-		if _, err := conn.Write(buf); err != nil {
+		if err := conn.WriteBuf(buf); err != nil {
 			if errors.Is(err, syscall.ENOBUFS) {
 				// socket buffer can be full keep retrying sending the same data
 				// again until it works or we get a different error
@@ -210,16 +194,7 @@ func (e *Switch) disconnect(id int, conn net.Conn) {
 	delete(e.conns, id)
 }
 
-func (e *Switch) rx(ctx context.Context, id int, conn protocolConn) error {
-	if conn.protocolImpl.Stream() {
-		return e.rxStream(ctx, id, conn, conn.protocolImpl.(streamProtocol))
-	}
-	return e.rxNonStream(ctx, id, conn)
-}
-
-func (e *Switch) rxNonStream(ctx context.Context, id int, conn net.Conn) error {
-	bufSize := 1024 * 128
-	buf := make([]byte, bufSize)
+func (e *Switch) rx(ctx context.Context, id int, conn hypervisorConn) error {
 loop:
 	for {
 		select {
@@ -228,32 +203,7 @@ loop:
 		default:
 			// passthrough
 		}
-		n, err := conn.Read(buf)
-		if err != nil {
-			return fmt.Errorf("cannot read size from socket: %w", err)
-		}
-		e.rxBuf(ctx, id, buf[:n])
-	}
-	return nil
-}
-
-func (e *Switch) rxStream(ctx context.Context, id int, conn net.Conn, sProtocol streamProtocol) error {
-	reader := bufio.NewReader(conn)
-loop:
-	for {
-		select {
-		case <-ctx.Done():
-			break loop
-		default:
-			// passthrough
-		}
-		size, err := sProtocol.ReadSize(reader)
-		if err != nil {
-			return fmt.Errorf("cannot read size from socket: %w", err)
-		}
-
-		buf := make([]byte, size)
-		_, err = io.ReadFull(reader, buf)
+		buf, err := conn.ReadBuf()
 		if err != nil {
 			return fmt.Errorf("cannot read packet from socket: %w", err)
 		}
@@ -294,17 +244,4 @@ func (e *Switch) rxBuf(_ context.Context, id int, buf []byte) {
 	}
 
 	atomic.AddUint64(&e.Received, uint64(len(buf)))
-}
-
-func protocolImplementation(protocol types.Protocol) protocol {
-	switch protocol {
-	case types.QemuProtocol:
-		return &qemuProtocol{}
-	case types.BessProtocol:
-		return &bessProtocol{}
-	case types.VfkitProtocol:
-		return &vfkitProtocol{}
-	default:
-		return &hyperkitProtocol{}
-	}
 }
