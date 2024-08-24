@@ -21,6 +21,14 @@ func HypervisorConnNew(rawConn net.Conn, protocol types.Protocol) hypervisorConn
 	}
 }
 
+func NewQemuConn(rawConn net.Conn) hypervisorConn {
+	return NewStreamConn(rawConn, &qemuProtocol{})
+}
+
+func NewHyperKitConn(rawConn net.Conn) hypervisorConn {
+	return NewStreamConn(rawConn, &hyperkitProtocol{})
+}
+
 type hypervisorConn interface {
 	net.Conn
 	WriteBuf(buf []byte) error

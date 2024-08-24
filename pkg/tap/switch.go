@@ -8,7 +8,6 @@ import (
 	"sync/atomic"
 	"syscall"
 
-	"github.com/containers/gvisor-tap-vsock/pkg/types"
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	"github.com/pkg/errors"
@@ -77,8 +76,7 @@ func (e *Switch) DeliverNetworkPacket(_ tcpip.NetworkProtocolNumber, pkt *stack.
 	}
 }
 
-func (e *Switch) Accept(ctx context.Context, rawConn net.Conn, protocol types.Protocol) error {
-	conn := HypervisorConnNew(rawConn, protocol)
+func (e *Switch) Accept(ctx context.Context, conn hypervisorConn) error {
 	log.Debugf("new connection from %s to %s", conn.RemoteAddr().String(), conn.LocalAddr().String())
 	id, failed := e.connect(conn)
 	if failed {
