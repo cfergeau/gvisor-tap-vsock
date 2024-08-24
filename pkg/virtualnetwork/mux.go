@@ -10,6 +10,7 @@ import (
 	"strconv"
 
 	"github.com/containers/gvisor-tap-vsock/pkg/apilog"
+	"github.com/containers/gvisor-tap-vsock/pkg/tap"
 	"github.com/containers/gvisor-tap-vsock/pkg/tokenauth"
 	"github.com/containers/gvisor-tap-vsock/pkg/types"
 	"github.com/inetaf/tcpproxy"
@@ -128,9 +129,11 @@ func (n *VirtualNetwork) Mux() http.Handler {
 			return
 		}
 
+		// FIXME: Can it be anything else than NewHyperKitConn()?
+		hvConn := tap.HypervisorConnNew(conn, n.configuration.Protocol)
 		// io.EOF indicates the VM closed the connection normally; only
 		// record genuine failures, not a normal disconnect.
-		if err := n.networkSwitch.Accept(context.Background(), conn, n.configuration.Protocol); err != nil && !errors.Is(err, io.EOF) {
+		if err := n.networkSwitch.Accept(context.Background(), hvConn); err != nil && !errors.Is(err, io.EOF) {
 			apilog.SetError(r, err)
 		}
 	})
