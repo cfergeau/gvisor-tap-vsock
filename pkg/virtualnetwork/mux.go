@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/containers/gvisor-tap-vsock/pkg/tap"
 	"github.com/containers/gvisor-tap-vsock/pkg/types"
 	log "github.com/sirupsen/logrus"
 	"gvisor.dev/gvisor/pkg/tcpip"
@@ -45,7 +46,9 @@ func (n *VirtualNetwork) Mux() *http.ServeMux {
 			return
 		}
 
-		_ = n.networkSwitch.Accept(context.Background(), conn, n.configuration.Protocol)
+		// FIXME: Can it be anything else than NewHyperKitConn()?
+		hvConn := tap.HypervisorConnNew(conn, n.configuration.Protocol)
+		_ = n.networkSwitch.Accept(context.Background(), hvConn)
 	})
 	mux.HandleFunc("/tunnel", func(w http.ResponseWriter, r *http.Request) {
 		ip := r.URL.Query().Get("ip")

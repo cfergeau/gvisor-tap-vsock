@@ -7,6 +7,7 @@ import (
 	"io"
 	"net"
 
+	"github.com/containers/gvisor-tap-vsock/pkg/tap"
 	"github.com/containers/gvisor-tap-vsock/pkg/types"
 	log "github.com/sirupsen/logrus"
 	"gvisor.dev/gvisor/pkg/tcpip/header"
@@ -16,7 +17,7 @@ func (n *VirtualNetwork) AcceptVpnKit(conn net.Conn) error {
 	if err := vpnkitHandshake(conn, n.configuration); err != nil {
 		log.Error(err)
 	}
-	_ = n.networkSwitch.Accept(context.Background(), conn, types.HyperKitProtocol)
+	_ = n.networkSwitch.Accept(context.Background(), tap.NewHyperKitConn(conn))
 	return nil
 }
 
