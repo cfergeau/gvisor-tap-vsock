@@ -173,24 +173,21 @@ func run(ctx context.Context, g *errgroup.Group, config *GVProxyConfig) error {
 			return errors.Wrap(err, "vpnkit listen error")
 		}
 		g.Go(func() error {
-		vpnloop:
 			for {
 				select {
 				case <-ctx.Done():
-					break vpnloop
+					return nil
 				default:
-					// pass through
+					conn, err := vpnkitListener.Accept()
+					if err != nil {
+						log.Errorf("vpnkit accept error: %s", err)
+						continue
+					}
+					g.Go(func() error {
+						return vn.AcceptVpnKit(conn)
+					})
 				}
-				conn, err := vpnkitListener.Accept()
-				if err != nil {
-					log.Errorf("vpnkit accept error: %s", err)
-					continue
-				}
-				g.Go(func() error {
-					return vn.AcceptVpnKit(conn)
-				})
 			}
-			return nil
 		})
 	}
 
@@ -209,11 +206,21 @@ func run(ctx context.Context, g *errgroup.Group, config *GVProxyConfig) error {
 		})
 
 		g.Go(func() error {
-			conn, err := qemuListener.Accept()
-			if err != nil {
-				return errors.Wrap(err, "qemu accept error")
+			for {
+				select {
+				case <-ctx.Done():
+					return nil
+				default:
+					conn, err := qemuListener.Accept()
+					if err != nil {
+						log.Errorf("qemu accept error: %s", err)
+						continue
+					}
+					g.Go(func() error {
+						return vn.AcceptQemu(ctx, conn)
+					})
+				}
 			}
-			return vn.AcceptQemu(ctx, conn)
 		})
 	}
 
@@ -232,11 +239,21 @@ func run(ctx context.Context, g *errgroup.Group, config *GVProxyConfig) error {
 		})
 
 		g.Go(func() error {
-			conn, err := bessListener.Accept()
-			if err != nil {
-				return errors.Wrap(err, "bess accept error")
+			for {
+				select {
+				case <-ctx.Done():
+					return nil
+				default:
+					conn, err := bessListener.Accept()
+					if err != nil {
+						log.Errorf("bess accept error: %s", err)
+						continue
+					}
+					g.Go(func() error {
+						return vn.AcceptBess(ctx, conn)
+					})
+				}
 			}
-			return vn.AcceptBess(ctx, conn)
 		})
 	}
 
@@ -256,11 +273,21 @@ func run(ctx context.Context, g *errgroup.Group, config *GVProxyConfig) error {
 		})
 
 		g.Go(func() error {
-			vfkitConn, err := transport.AcceptVfkit(conn)
-			if err != nil {
-				return errors.Wrap(err, "vfkit accept error")
+			for {
+				select {
+				case <-ctx.Done():
+					return nil
+				default:
+					vfkitConn, err := transport.AcceptVfkit(conn)
+					if err != nil {
+						log.Errorf("vfkit accept error: %s", err)
+						continue
+					}
+					g.Go(func() error {
+						return vn.AcceptVfkit(ctx, vfkitConn)
+					})
+				}
 			}
-			return vn.AcceptVfkit(ctx, vfkitConn)
 		})
 	}
 
