@@ -3,7 +3,6 @@ package virtualnetwork
 import (
 	"context"
 	"errors"
-	"math"
 	"net"
 	"strconv"
 
@@ -16,9 +15,6 @@ func (n *VirtualNetwork) Dial(network, addr string) (net.Conn, error) {
 	ip, port, err := splitIPPort(network, addr)
 	if err != nil {
 		return nil, err
-	}
-	if port > math.MaxUint16 {
-		return nil, errors.New("invalid port number")
 	}
 	return gonet.DialTCP(n.stack, tcpip.FullAddress{
 		NIC:  1,
@@ -33,9 +29,6 @@ func (n *VirtualNetwork) DialContextTCP(ctx context.Context, addr string) (net.C
 		return nil, err
 	}
 
-	if port > math.MaxUint16 {
-		return nil, errors.New("invalid port number")
-	}
 	return gonet.DialContextTCP(ctx, n.stack,
 		tcpip.FullAddress{
 			NIC:  1,
@@ -49,9 +42,6 @@ func (n *VirtualNetwork) Listen(network, addr string) (net.Listener, error) {
 	if err != nil {
 		return nil, err
 	}
-	if port > math.MaxUint16 {
-		return nil, errors.New("invalid port number")
-	}
 	return gonet.ListenTCP(n.stack, tcpip.FullAddress{
 		NIC:  1,
 		Addr: tcpip.AddrFrom4Slice(ip.To4()),
@@ -59,7 +49,7 @@ func (n *VirtualNetwork) Listen(network, addr string) (net.Listener, error) {
 	}, ipv4.ProtocolNumber)
 }
 
-func splitIPPort(network string, addr string) (net.IP, uint64, error) {
+func splitIPPort(network string, addr string) (net.IP, uint16, error) {
 	if network != "tcp" {
 		return nil, 0, errors.New("only tcp is supported")
 	}
@@ -75,5 +65,5 @@ func splitIPPort(network string, addr string) (net.IP, uint64, error) {
 	if ip == nil {
 		return nil, 0, errors.New("invalid address, must be an IP")
 	}
-	return ip, port, nil
+	return ip, uint16(port), nil
 }

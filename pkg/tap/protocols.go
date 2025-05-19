@@ -33,8 +33,9 @@ func (s *hyperkitProtocol) Write(buf []byte, size int) {
 	if size < 0 || size > math.MaxUint16 {
 		log.Warnf("size out of range. Resetting to %d", math.MaxUint16)
 		size = math.MaxUint16
+		panic("overflow")
 	}
-	binary.LittleEndian.PutUint16(buf, uint16(size)) //#nosec: GO115
+	binary.LittleEndian.PutUint16(buf, uint16(size))
 }
 
 func (s *hyperkitProtocol) Read(buf []byte) int {

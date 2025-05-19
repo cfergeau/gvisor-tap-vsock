@@ -1,6 +1,7 @@
 package tap
 
 import (
+	"fmt"
 	"math"
 	"net"
 
@@ -14,7 +15,7 @@ import (
 
 type LinkEndpoint struct {
 	debug      bool
-	mtu        int
+	mtu        uint32
 	mac        tcpip.LinkAddress
 	ip         string
 	virtualIPs map[string]struct{}
@@ -32,9 +33,12 @@ func NewLinkEndpoint(debug bool, mtu int, macAddress string, ip string, virtualI
 	for _, virtualIP := range virtualIPs {
 		set[virtualIP] = struct{}{}
 	}
+	if mtu < 0 || mtu > math.MaxUint32 {
+		return nil, fmt.Errorf("mtu must be a 32 bit value (%d > %d)", mtu, math.MaxUint32)
+	}
 	return &LinkEndpoint{
 		debug:      debug,
-		mtu:        mtu,
+		mtu:        uint32(mtu),
 		mac:        tcpip.LinkAddress(linkAddr),
 		ip:         ip,
 		virtualIPs: set,
@@ -83,14 +87,11 @@ func (e *LinkEndpoint) MaxHeaderLength() uint16 {
 }
 
 func (e *LinkEndpoint) MTU() uint32 {
-	if e.mtu < 0 || e.mtu > math.MaxUint32 {
-		e.mtu = math.MaxUint32
-	}
-	return uint32(e.mtu)
+	return e.mtu
 }
 
 func (e *LinkEndpoint) SetMTU(mtu uint32) {
-	e.mtu = int(mtu)
+	e.mtu = mtu
 }
 
 func (e *LinkEndpoint) Wait()                     {}

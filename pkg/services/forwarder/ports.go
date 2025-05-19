@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"math"
 	"net"
 	"net/http"
 	"net/url"
@@ -380,9 +379,6 @@ func tcpipAddress(nicID tcpip.NICID, remote string) (address tcpip.FullAddress, 
 	}
 
 	port, err := strconv.ParseUint(split[1], 10, 16)
-	if port > math.MaxUint16 {
-		return address, errors.New("invalid remote port")
-	}
 	if err != nil {
 		return address, err
 

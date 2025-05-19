@@ -1,8 +1,6 @@
 package transport
 
 import (
-	"fmt"
-	"math"
 	"net"
 	"net/url"
 	"strconv"
@@ -20,16 +18,10 @@ func listenURL(parsed *url.URL) (net.Listener, error) {
 			return nil, err
 		}
 
-		if port > math.MaxUint32 {
-			return nil, fmt.Errorf("invalid port")
-		}
 		if parsed.Hostname() != "" {
 			cid, err := strconv.ParseUint(parsed.Hostname(), 10, 32)
 			if err != nil {
 				return nil, err
-			}
-			if cid > math.MaxUint32 {
-				return nil, fmt.Errorf("invalid cid")
 			}
 			return mdlayhervsock.ListenContextID(uint32(cid), uint32(port), nil)
 		}

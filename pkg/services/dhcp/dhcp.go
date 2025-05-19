@@ -52,11 +52,12 @@ func handler(configuration *types.Configuration, ipPool *tap.IPPool) server4.Han
 		reply.UpdateOption(dhcpv4.Option{Code: dhcpv4.OptionRouter, Value: dhcpv4.IP(net.ParseIP(configuration.GatewayIP))})
 		reply.UpdateOption(dhcpv4.Option{Code: dhcpv4.OptionDomainNameServer, Value: dhcpv4.IPs([]net.IP{net.ParseIP(configuration.GatewayIP)})})
 
-		if configuration.MTU < 0 || configuration.MTU > math.MaxUint16 {
+		mtu := configuration.MTU
+		if mtu < 0 || mtu > math.MaxUint16 {
 			log.Errorf("dhcp: invalid MTU %d", configuration.MTU)
 			return
 		}
-		reply.UpdateOption(dhcpv4.Option{Code: dhcpv4.OptionInterfaceMTU, Value: dhcpv4.Uint16(configuration.MTU)}) //#nosec: G115. Safely checked
+		reply.UpdateOption(dhcpv4.Option{Code: dhcpv4.OptionInterfaceMTU, Value: dhcpv4.Uint16(mtu)})
 		reply.UpdateOption(dhcpv4.Option{Code: dhcpv4.OptionDNSDomainSearchList, Value: &rfc1035label.Labels{
 			Labels: configuration.DNSSearchDomains,
 		}})

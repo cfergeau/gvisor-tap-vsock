@@ -3,7 +3,6 @@ package virtualnetwork
 import (
 	"context"
 	"encoding/json"
-	"math"
 	"net"
 	"net/http"
 	"strconv"
@@ -34,11 +33,12 @@ func (n *VirtualNetwork) ServicesMux() *http.ServeMux {
 			http.Error(w, "ip is mandatory", http.StatusInternalServerError)
 			return
 		}
-		port, err := strconv.Atoi(r.URL.Query().Get("port"))
+		port, err := strconv.ParseUint(r.URL.Query().Get("port"), 10, 16)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
+		port16 := uint16(port)
 
 		hj, ok := w.(http.Hijacker)
 		if !ok {
@@ -63,16 +63,12 @@ func (n *VirtualNetwork) ServicesMux() *http.ServeMux {
 			return
 		}
 
-		if port < 0 || port > math.MaxUint16 {
-			http.Error(w, "invalid port", http.StatusInternalServerError)
-			return
-		}
 		remote := tcpproxy.DialProxy{
 			DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
 				return gonet.DialContextTCP(ctx, n.stack, tcpip.FullAddress{
 					NIC:  1,
 					Addr: tcpip.AddrFrom4Slice(net.ParseIP(ip).To4()),
-					Port: uint16(port), //#nosec:G115. Safely checked
+					Port: port16,
 				}, ipv4.ProtocolNumber)
 			},
 			OnDialError: func(_ net.Conn, dstDialErr error) {
