@@ -21,6 +21,7 @@ func TCP(s *stack.Stack, nat map[tcpip.Address]tcpip.Address, natLock *sync.Mute
 	return tcp.NewForwarder(s, 0, 10, func(r *tcp.ForwarderRequest) {
 		localAddress := r.ID().LocalAddress
 
+		// FIXME:could the "config file" code use linkLocal().Contains(…) or similar?
 		if (!ec2MetadataAccess) && linkLocal().Contains(localAddress) {
 			r.Complete(true)
 			return
