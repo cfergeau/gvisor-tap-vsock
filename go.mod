@@ -11,6 +11,7 @@ require (
 	github.com/coreos/stream-metadata-go v0.4.9
 	github.com/dustin/go-humanize v1.0.1
 	github.com/google/gopacket v1.1.19
+	github.com/inetaf/tcpproxy v0.0.0-20250222171855-c4b9df066048
 	github.com/insomniacslk/dhcp v0.0.0-20240710054256-ddd8a41251c9
 	github.com/linuxkit/virtsock v0.0.0-20220523201153-1a23e78aa7a2
 	github.com/mdlayher/vsock v1.2.1
