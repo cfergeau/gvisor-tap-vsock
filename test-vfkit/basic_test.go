@@ -5,10 +5,12 @@ package e2evfkit
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"math"
 	"os"
+	"os/exec"
 	"path"
 	"path/filepath"
 	"strings"
@@ -116,5 +118,17 @@ var _ = ginkgo.Describe("ping with gvproxy and vfkit", func() {
 		out, err := sshExec("ping -w2 7.7.7.7")
 		log.Infof("ping: %s", out)
 		gomega.Expect(err).To(gomega.HaveOccurred())
+	})
+})
+var _ = ginkgo.Describe("tcpproxy half-close", func() {
+	ginkgo.It("should start netcat", func() {
+		out, err := sshExec("nc -l -k -v 8111")
+		log.Infof("output: %s", out)
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) {
+			log.Infof("exitErr: %v", exitErr)
+			log.Infof("stderr: %s", exitErr.Stderr)
+		}
+		gomega.Expect(err).NotTo(gomega.HaveOccurred())
 	})
 })
