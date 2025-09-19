@@ -7,6 +7,7 @@ require (
 	github.com/apparentlymart/go-cidr v1.1.0
 	github.com/containers/winquit v1.1.0
 	github.com/coreos/stream-metadata-go v0.4.10
+	github.com/crc-org/vfkit v0.6.1
 	github.com/dustin/go-humanize v1.0.1
 	github.com/foxcpp/go-mockdns v1.2.0
 	github.com/google/gopacket v1.1.19
@@ -32,7 +33,8 @@ require (
 
 require (
 	github.com/Masterminds/semver/v3 v3.4.0 // indirect
-	github.com/davecgh/go-spew v1.1.1 // indirect
+	github.com/containers/common v0.62.2 // indirect
+	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-task/slim-sprig/v3 v3.0.0 // indirect
 	github.com/google/btree v1.1.2 // indirect
@@ -41,7 +43,7 @@ require (
 	github.com/mdlayher/socket v0.4.1 // indirect
 	github.com/pierrec/lz4/v4 v4.1.14 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
-	github.com/pmezard/go-difflib v1.0.0 // indirect
+	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/u-root/uio v0.0.0-20240224005618-d2acac8f3701 // indirect
 	github.com/vishvananda/netns v0.0.5 // indirect
 	go.uber.org/automaxprocs v1.6.0 // indirect
