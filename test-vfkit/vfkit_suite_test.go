@@ -21,6 +21,7 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"golang.org/x/mod/semver"
+	"golang.org/x/sys/unix"
 )
 
 func TestSuite(t *testing.T) {
@@ -113,10 +114,21 @@ var _ = ginkgo.BeforeSuite(func() {
 
 	gomega.Expect(os.MkdirAll(filepath.Join(tmpDir, "disks"), os.ModePerm)).Should(gomega.Succeed())
 
-	downloader, err := e2e_utils.NewFcosDownloader(filepath.Join(tmpDir, "disks"))
+	var fcosImage string
+	const useCached = true
+	if useCached {
+		fcosImage = "../tmp/disks/fedora-coreos-43.20250917.1.0-applehv.aarch64.raw"
+	} else {
+		downloader, err := e2e_utils.NewFcosDownloader(filepath.Join(tmpDir, "disks"))
+		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+		fcosImage, err = downloader.DownloadImage("applehv", "raw.gz")
+		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+	}
+	cloneFile := "../tmp/disks/fcos-clone.raw"
+	os.Remove(cloneFile)
+	err = unix.Clonefile(fcosImage, cloneFile, 0)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-	fcosImage, err := downloader.DownloadImage("applehv", "raw.gz")
-	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+	fcosImage = cloneFile
 
 	publicKey, err := e2e_utils.CreateSSHKeys(publicKeyFile, privateKeyFile)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
