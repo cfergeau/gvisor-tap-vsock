@@ -101,6 +101,73 @@ func vfkitCmd(diskImage string) (*exec.Cmd, error) {
 	return vm.Cmd(vfkitExecutable())
 }
 
+func waitProcessAsync(cmd *exec.Cmd) chan error {
+	errCh := make(chan error)
+	go func() {
+		if err := cmd.Wait(); err != nil {
+			log.Error(err)
+			errCh <- err
+		}
+		close(errCh)
+	}()
+	return errCh
+}
+
+func waitSSH(cmd *exec.Cmd) error {
+	timeout := time.After(15 * time.Second)
+	waitCh := waitProcessAsync(cmd)
+	for {
+		select {
+		case err := <-waitCh:
+			// process failed to start/errored out
+			log.Errorf("error %v", err)
+			if err != nil {
+				return err
+			}
+			return fmt.Errorf("process exited unexpectedly")
+		case <-time.After(1 * time.Second):
+			_, err := sshExec("whoami")
+			if err == nil {
+				return nil
+			}
+		case <-timeout:
+			return fmt.Errorf("no ssh connection after 15s timeout")
+		}
+	}
+}
+
+func waitGvproxy(cmd *exec.Cmd, sock, vfkitSock string) error {
+	timeout := time.After(5 * time.Second)
+	waitCh := waitProcessAsync(cmd)
+	for {
+		select {
+		case err := <-waitCh:
+			// process failed to start/errored out
+			log.Errorf("error %v", err)
+			if err != nil {
+				return err
+			}
+			return fmt.Errorf("process exited unexpectedly")
+		case <-time.After(100 * time.Millisecond):
+			if _, err := os.Stat(sock); err != nil {
+				if os.IsNotExist(err) {
+					break
+				}
+				return err
+			}
+			if _, err := os.Stat(vfkitSock); err != nil {
+				if os.IsNotExist(err) {
+					break
+				}
+				return err
+			}
+			return nil
+		case <-timeout:
+			return fmt.Errorf("no gvproxy sockets 5s timeout")
+		}
+	}
+}
+
 var _ = ginkgo.BeforeSuite(func() {
 	// clear the environment before running the tests. It may happen the tests were abruptly stopped earlier leaving a dirty env
 	cleanup()
@@ -137,8 +204,6 @@ var _ = ginkgo.BeforeSuite(func() {
 	err = e2e_utils.CreateIgnition(ignFile, publicKey, ignitionUser, ignitionPasswordHash)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	errors := make(chan error)
-
 	_ = os.Remove(sock)
 	_ = os.Remove(vfkitSock)
 
@@ -153,57 +218,16 @@ var _ = ginkgo.BeforeSuite(func() {
 	host.Stderr = os.Stderr
 	host.Stdout = os.Stdout
 	gomega.Expect(host.Start()).Should(gomega.Succeed())
-	go func() {
-		if err := host.Wait(); err != nil {
-			log.Error(err)
-			errors <- err
-		}
-	}()
-
-	for {
-		_, err := os.Stat(sock)
-		if os.IsNotExist(err) {
-			log.Info("waiting for vfkit-api socket")
-			time.Sleep(100 * time.Millisecond)
-			continue
-		}
-		_, err = os.Stat(vfkitSock)
-		if os.IsNotExist(err) {
-			log.Info("waiting for vfkit socket")
-			time.Sleep(100 * time.Millisecond)
-			continue
-		}
-		break
-	}
+	err = waitGvproxy(host, sock, vfkitSock)
+	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	client, err = vfkitCmd(fcosImage)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 	client.Stderr = os.Stderr
 	client.Stdout = os.Stdout
 	gomega.Expect(client.Start()).Should(gomega.Succeed())
-	go func() {
-		if err := client.Wait(); err != nil {
-			log.Error(err)
-			errors <- err
-		}
-	}()
-
-	for {
-		_, err := sshExec("whoami")
-		if err == nil {
-			break
-		}
-
-		select {
-		case err := <-errors:
-			log.Errorf("Error %v", err)
-			// this expect will always fail so the tests stop
-			gomega.Expect(err).To(gomega.Equal(nil))
-			break
-		case <-time.After(1 * time.Second):
-			log.Infof("waiting for client to connect: %v", err)
-		}
-	}
+	err = waitSSH(client)
+	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 })
 
 func vfkitVersion() (float64, error) {
