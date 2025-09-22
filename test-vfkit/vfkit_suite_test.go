@@ -11,7 +11,6 @@ import (
 	"strconv"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/containers/gvisor-tap-vsock/pkg/types"
 	e2e_utils "github.com/containers/gvisor-tap-vsock/test-utils"
@@ -101,73 +100,6 @@ func vfkitCmd(diskImage string) (*exec.Cmd, error) {
 	return vm.Cmd(vfkitExecutable())
 }
 
-func waitProcessAsync(cmd *exec.Cmd) chan error {
-	errCh := make(chan error)
-	go func() {
-		if err := cmd.Wait(); err != nil {
-			log.Error(err)
-			errCh <- err
-		}
-		close(errCh)
-	}()
-	return errCh
-}
-
-func waitSSH(cmd *exec.Cmd) error {
-	timeout := time.After(15 * time.Second)
-	waitCh := waitProcessAsync(cmd)
-	for {
-		select {
-		case err := <-waitCh:
-			// process failed to start/errored out
-			log.Errorf("error %v", err)
-			if err != nil {
-				return err
-			}
-			return fmt.Errorf("process exited unexpectedly")
-		case <-time.After(1 * time.Second):
-			_, err := sshExec("whoami")
-			if err == nil {
-				return nil
-			}
-		case <-timeout:
-			return fmt.Errorf("no ssh connection after 15s timeout")
-		}
-	}
-}
-
-func waitGvproxy(cmd *exec.Cmd, sock, vfkitSock string) error {
-	timeout := time.After(5 * time.Second)
-	waitCh := waitProcessAsync(cmd)
-	for {
-		select {
-		case err := <-waitCh:
-			// process failed to start/errored out
-			log.Errorf("error %v", err)
-			if err != nil {
-				return err
-			}
-			return fmt.Errorf("process exited unexpectedly")
-		case <-time.After(100 * time.Millisecond):
-			if _, err := os.Stat(sock); err != nil {
-				if os.IsNotExist(err) {
-					break
-				}
-				return err
-			}
-			if _, err := os.Stat(vfkitSock); err != nil {
-				if os.IsNotExist(err) {
-					break
-				}
-				return err
-			}
-			return nil
-		case <-timeout:
-			return fmt.Errorf("no gvproxy sockets 5s timeout")
-		}
-	}
-}
-
 var _ = ginkgo.BeforeSuite(func() {
 	// clear the environment before running the tests. It may happen the tests were abruptly stopped earlier leaving a dirty env
 	cleanup()
@@ -215,7 +147,7 @@ var _ = ginkgo.BeforeSuite(func() {
 	host.Stderr = os.Stderr
 	host.Stdout = os.Stdout
 	gomega.Expect(host.Start()).Should(gomega.Succeed())
-	err = waitGvproxy(host, sock, vfkitSock)
+	err = e2e_utils.WaitGvproxy(host, sock, vfkitSock)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	client, err = vfkitCmd(fcosImage)
@@ -223,7 +155,7 @@ var _ = ginkgo.BeforeSuite(func() {
 	client.Stderr = os.Stderr
 	client.Stdout = os.Stdout
 	gomega.Expect(client.Start()).Should(gomega.Succeed())
-	err = waitSSH(client)
+	err = e2e_utils.WaitSSH(client, sshExec)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 })
 
