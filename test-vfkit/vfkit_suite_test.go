@@ -149,6 +149,7 @@ var _ = ginkgo.BeforeSuite(func() {
 	gomega.Expect(host.Start()).Should(gomega.Succeed())
 	err = e2e_utils.WaitGvproxy(host, sock, vfkitSock)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+	log.Infof("gvproxy host: %p", host)
 
 	client, err = vfkitCmd(fcosImage)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -236,15 +237,25 @@ func scpFromVM(src, dst string) error {
 }
 
 var _ = ginkgo.AfterSuite(func() {
+	log.Infof("after suite")
+	log.Infof("host: %p", host)
 	if host != nil {
+		log.Infof("killing gvproxy")
 		if err := host.Process.Kill(); err != nil {
-			log.Error(err)
+			log.Infof("error killing gvproxy: %v", err)
+		} else {
+			log.Infof("no error")
 		}
 	}
 	if client != nil {
+		log.Infof("killing vfkit")
 		if err := client.Process.Kill(); err != nil {
-			log.Error(err)
+			log.Infof("error killing vfkit: %v", err)
+		} else {
+			log.Infof("no error")
 		}
 	}
+	log.Infof("after kills")
 	cleanup()
+	log.Infof("after cleanup")
 })
