@@ -78,6 +78,67 @@ func gvproxyCmd() *exec.Cmd {
 	return cmd.Cmd(filepath.Join(binDir, "gvproxy"))
 }
 
+func waitProcessAsync(cmd *exec.Cmd) chan error {
+	errCh := make(chan error)
+	go func() {
+		if err := cmd.Wait(); err != nil {
+			log.Error(err)
+			errCh <- err
+		}
+		close(errCh)
+	}()
+	return errCh
+}
+
+func waitGvproxy(cmd *exec.Cmd, sock string) error {
+	timeout := time.After(5 * time.Second)
+	waitCh := waitProcessAsync(cmd)
+	for {
+		select {
+		case err := <-waitCh:
+			// process failed to start/errored out
+			log.Errorf("error %v", err)
+			if err != nil {
+				return err
+			}
+			return fmt.Errorf("process exited unexpectedly")
+		case <-time.After(100 * time.Millisecond):
+			if _, err := os.Stat(sock); err != nil {
+				if os.IsNotExist(err) {
+					break
+				}
+				return err
+			}
+			return nil
+		case <-timeout:
+			return fmt.Errorf("no gvproxy sockets 5s timeout")
+		}
+	}
+}
+
+func waitSSH(cmd *exec.Cmd) error {
+	timeout := time.After(15 * time.Second)
+	waitCh := waitProcessAsync(cmd)
+	for {
+		select {
+		case err := <-waitCh:
+			// process failed to start/errored out
+			log.Errorf("error %v", err)
+			if err != nil {
+				return err
+			}
+			return fmt.Errorf("process exited unexpectedly")
+		case <-time.After(1 * time.Second):
+			_, err := sshExec("whoami")
+			if err == nil {
+				return nil
+			}
+		case <-timeout:
+			return fmt.Errorf("no ssh connection after 15s timeout")
+		}
+	}
+}
+
 var _ = ginkgo.BeforeSuite(func() {
 	gomega.Expect(os.MkdirAll(filepath.Join(tmpDir, "disks"), os.ModePerm)).Should(gomega.Succeed())
 
@@ -98,21 +159,8 @@ var _ = ginkgo.BeforeSuite(func() {
 	host.Stderr = os.Stderr
 	host.Stdout = os.Stdout
 	gomega.Expect(host.Start()).Should(gomega.Succeed())
-	go func() {
-		if err := host.Wait(); err != nil {
-			log.Error(err)
-		}
-	}()
-
-	for {
-		_, err := os.Stat(sock)
-		if os.IsNotExist(err) {
-			log.Info("waiting for socket")
-			time.Sleep(100 * time.Millisecond)
-			continue
-		}
-		break
-	}
+	err = waitGvproxy(host, sock)
+	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	qemuCmd := newQemuCmd()
 	qemuCmd.SetIgnition(ignFile)
@@ -124,21 +172,8 @@ var _ = ginkgo.BeforeSuite(func() {
 	client.Stderr = os.Stderr
 	client.Stdout = os.Stdout
 	gomega.Expect(client.Start()).Should(gomega.Succeed())
-	go func() {
-		if err := client.Wait(); err != nil {
-			log.Error(err)
-		}
-	}()
-
-	for {
-		_, err := sshExec("whoami")
-		if err == nil {
-			break
-		}
-
-		log.Infof("waiting for client to connect: %v", err)
-		time.Sleep(time.Second)
-	}
+	err = waitSSH(client)
+	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	err = scp(filepath.Join(binDir, "test-companion"), "/tmp/test-companion")
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
