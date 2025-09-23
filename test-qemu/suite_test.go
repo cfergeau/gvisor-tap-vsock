@@ -8,7 +8,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strconv"
-	"strings"
 	"testing"
 	"time"
 
@@ -48,6 +47,7 @@ var (
 	ignFile         string
 	forwardSock     string
 	forwardRootSock string
+	vm              *e2e_utils.VirtualMachine
 )
 
 func init() {
@@ -111,46 +111,24 @@ var _ = ginkgo.BeforeSuite(func() {
 	client.Stderr = os.Stderr
 	client.Stdout = os.Stdout
 	gomega.Expect(client.Start()).Should(gomega.Succeed())
+	vm, err = e2e_utils.NewVirtualMachine()
+	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+	vm.SetSSHConfig(&e2e_utils.SSHConfig{
+		IdentityPath:   privateKeyFile,
+		Port:           sshPort,
+		RemoteUsername: ignitionUser,
+	})
 	err = e2e_utils.WaitSSH(client, sshExec)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	err = scp(filepath.Join(binDir, "test-companion"), "/tmp/test-companion")
+	err = vm.CopyToVM(filepath.Join(binDir, "test-companion"), "/tmp/test-companion")
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	// start an embedded DNS and http server in the VM. Wait a bit for the server to start.
-	cmd := sshCommand("sudo /tmp/test-companion")
+	cmd := vm.SshCommand("sudo /tmp/test-companion")
 	gomega.Expect(cmd.Start()).ShouldNot(gomega.HaveOccurred())
 	time.Sleep(5 * time.Second)
 })
-
-func scp(src, dst string) error {
-	sshCmd := exec.Command("scp",
-		"-o", "UserKnownHostsFile=/dev/null",
-		"-o", "StrictHostKeyChecking=no",
-		"-o", "IdentitiesOnly=yes",
-		"-i", privateKeyFile,
-		"-P", strconv.Itoa(sshPort),
-		src,
-		fmt.Sprintf("%s@127.0.0.1:%s", ignitionUser, dst)) // #nosec G204
-	sshCmd.Stderr = os.Stderr
-	sshCmd.Stdout = os.Stdout
-	return sshCmd.Run()
-}
-
-func sshExec(cmd ...string) ([]byte, error) {
-	return sshCommand(cmd...).Output()
-}
-
-func sshCommand(cmd ...string) *exec.Cmd {
-	sshCmd := exec.Command("ssh",
-		"-o", "UserKnownHostsFile=/dev/null",
-		"-o", "StrictHostKeyChecking=no",
-		"-o", "IdentitiesOnly=yes",
-		"-i", privateKeyFile,
-		"-p", strconv.Itoa(sshPort),
-		fmt.Sprintf("%s@127.0.0.1", ignitionUser), "--", strings.Join(cmd, " ")) // #nosec G204
-	return sshCmd
-}
 
 var _ = ginkgo.AfterSuite(func() {
 	if host != nil {

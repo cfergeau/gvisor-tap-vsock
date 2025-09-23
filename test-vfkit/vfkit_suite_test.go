@@ -43,6 +43,7 @@ const (
 var (
 	tmpDir         string
 	binDir         string
+	vm             *e2e_utils.VirtualMachine
 	host           *exec.Cmd
 	client         *exec.Cmd
 	privateKeyFile string
@@ -134,15 +135,23 @@ var _ = ginkgo.BeforeSuite(func() {
 
 	host.Stderr = os.Stderr
 	host.Stdout = os.Stdout
+
 	gomega.Expect(host.Start()).Should(gomega.Succeed())
 	err = e2e_utils.WaitGvproxy(host, sock, vfkitSock)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	client, err = vfkitCmd(fcosImage)
+	client, err := vfkitCmd(fcosImage)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 	client.Stderr = os.Stderr
 	client.Stdout = os.Stdout
 	gomega.Expect(client.Start()).Should(gomega.Succeed())
+	vm, err = e2e_utils.NewVirtualMachine()
+	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+	vm.SetSSHConfig(&e2e_utils.SSHConfig{
+		IdentityPath:   privateKeyFile,
+		Port:           sshPort,
+		RemoteUsername: ignitionUser,
+	})
 	err = e2e_utils.WaitSSH(client, sshExec)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 })
@@ -178,18 +187,7 @@ func vfkitExecutable() string {
 }
 
 func sshExec(cmd ...string) ([]byte, error) {
-	return sshCommand(cmd...).Output()
-}
-
-func sshCommand(cmd ...string) *exec.Cmd {
-	sshCmd := exec.Command("ssh",
-		"-o", "UserKnownHostsFile=/dev/null",
-		"-o", "StrictHostKeyChecking=no",
-		"-o", "IdentitiesOnly=yes",
-		"-i", privateKeyFile,
-		"-p", strconv.Itoa(sshPort),
-		fmt.Sprintf("%s@127.0.0.1", ignitionUser), "--", strings.Join(cmd, " ")) // #nosec G204
-	return sshCmd
+	return vm.Run(cmd...)
 }
 
 func cleanup() {
@@ -201,26 +199,6 @@ func cleanup() {
 	// it removes the ignition.sock file
 	socketPath := filepath.Join(os.TempDir(), "ignition.sock")
 	_ = os.Remove(socketPath)
-}
-
-func scp(src, dst string) error {
-	sshCmd := exec.Command("/usr/bin/scp",
-		"-o", "UserKnownHostsFile=/dev/null",
-		"-o", "StrictHostKeyChecking=no",
-		"-o", "IdentitiesOnly=yes",
-		"-i", privateKeyFile,
-		"-P", strconv.Itoa(sshPort),
-		src, dst) // #nosec G204
-	sshCmd.Stderr = os.Stderr
-	sshCmd.Stdout = os.Stdout
-	return sshCmd.Run()
-}
-func scpToVM(src, dst string) error {
-	return scp(src, fmt.Sprintf("%s@127.0.0.1:%s", ignitionUser, dst))
-}
-
-func scpFromVM(src, dst string) error {
-	return scp(fmt.Sprintf("%s@127.0.0.1:%s", ignitionUser, src), dst)
 }
 
 var _ = ginkgo.AfterSuite(func() {

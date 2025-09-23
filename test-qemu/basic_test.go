@@ -8,6 +8,10 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+func sshExec(cmd ...string) ([]byte, error) {
+	return vm.Run(cmd...)
+}
+
 var _ = ginkgo.Describe("connectivity with qemu", func() {
 	e2e.BasicConnectivityTests(e2e.BasicTestProps{
 		SSHExec: sshExec,
