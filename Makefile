@@ -93,3 +93,7 @@ test-mac: gvproxy test-companion
 test-mac-debug:
 	go test -timeout 20m  -v ./test-vfkit --debug
 	rm -f ./test-vfkit/__debug_bin*
+
+.PHONY: test-perf
+test-perf:
+	go test -v ./test-performance
