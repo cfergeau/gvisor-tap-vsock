@@ -69,7 +69,7 @@ func WaitSSH(cmd *exec.Cmd, sshExec sshFunc) error {
 		return Ready, nil
 	}
 
-	return waitProcessReady(cmd, sshCheck, time.Second, 15)
+	return waitProcessReady(cmd, sshCheck, time.Second, 30)
 }
 
 func WaitGvproxy(cmd *exec.Cmd, sockets ...string) error {
