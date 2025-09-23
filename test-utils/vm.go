@@ -13,7 +13,8 @@ import (
 // SSHConfig contains remote access information for SSH
 type SSHConfig struct {
 	// IdentityPath is the fq path to the ssh priv key
-	IdentityPath string
+	IdentityPath  string
+	PublicKeyPath string
 	// SSH port for user networking
 	Port int
 	// RemoteUsername of the vm user
