@@ -8,19 +8,15 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strconv"
-	"strings"
 	"testing"
 
 	"github.com/containers/gvisor-tap-vsock/pkg/types"
 	e2e_utils "github.com/containers/gvisor-tap-vsock/test-utils"
-	vfkit "github.com/crc-org/vfkit/pkg/config"
 
 	"github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
 	log "github.com/sirupsen/logrus"
 
-	"golang.org/x/mod/semver"
 	"golang.org/x/sys/unix"
 )
 
@@ -68,35 +64,11 @@ func gvproxyCmd() *exec.Cmd {
 	cmd.AddVfkitSocket("unixgram://" + vfkitSock)
 	cmd.SSHPort = sshPort
 
-	return cmd.Cmd(filepath.Join(binDir, "gvproxy"))
-}
+	goCmd := cmd.Cmd(filepath.Join(binDir, "gvproxy"))
+	goCmd.Stderr = os.Stderr
+	goCmd.Stdout = os.Stdout
 
-func vfkitCmd(diskImage string) (*exec.Cmd, error) {
-	bootloader := vfkit.NewEFIBootloader(efiStore, true)
-	vm := vfkit.NewVirtualMachine(2, 2048, bootloader)
-	disk, err := vfkit.VirtioBlkNew(diskImage)
-	if err != nil {
-		return nil, err
-	}
-	err = vm.AddDevice(disk)
-	if err != nil {
-		return nil, err
-	}
-	net, err := vfkit.VirtioNetNew("5a:94:ef:e4:0c:ee")
-	if err != nil {
-		return nil, err
-	}
-	net.SetUnixSocketPath(vfkitSock)
-	err = vm.AddDevice(net)
-	if err != nil {
-		return nil, err
-	}
-	ignition, err := vfkit.IgnitionNew(ignFile, ignitionSock)
-	if err != nil {
-		return nil, err
-	}
-	vm.Ignition = ignition
-	return vm.Cmd(vfkitExecutable())
+	return goCmd
 }
 
 var _ = ginkgo.BeforeSuite(func() {
@@ -104,7 +76,7 @@ var _ = ginkgo.BeforeSuite(func() {
 	cleanup()
 
 	// check if vfkit version is greater than v0.5 (ignition support is available starting from v0.6)
-	version, err := vfkitVersion()
+	version, err := e2e_utils.VfkitVersion()
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 	gomega.Expect(version >= vfkitVersionNeeded).Should(gomega.BeTrue())
 
@@ -143,13 +115,17 @@ var _ = ginkgo.BeforeSuite(func() {
 		host = exec.Command("dlv", dlvArgs...)
 	}
 
-	host.Stderr = os.Stderr
-	host.Stdout = os.Stdout
-
-	client, err := vfkitCmd(fcosImage)
+	vmConfig := e2e_utils.VirtualMachineConfig{
+		DiskImage:      fcosImage,
+		IgnitionFile:   ignFile,
+		IgnitionSocket: ignitionSock,
+		NetworkSocket:  vfkitSock,
+		ServicesSocket: sock,
+		EFIStore:       efiStore,
+	}
+	client, err := e2e_utils.VfkitCmd(&vmConfig)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-	client.Stderr = os.Stderr
-	client.Stdout = os.Stdout
+
 	vm, err = e2e_utils.NewVirtualMachine(client, host)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 	vm.SetSSHConfig(&e2e_utils.SSHConfig{
@@ -161,40 +137,6 @@ var _ = ginkgo.BeforeSuite(func() {
 	err = vm.Start()
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 })
-
-func vfkitVersion() (float64, error) {
-	executable := vfkitExecutable()
-	if executable == "" {
-		return 0, fmt.Errorf("vfkit executable not found")
-	}
-	out, err := exec.Command(executable, "-v").Output()
-	if err != nil {
-		return 0, err
-	}
-	version := strings.TrimPrefix(string(out), "vfkit version:")
-	majorMinor := strings.TrimPrefix(semver.MajorMinor(strings.TrimSpace(version)), "v")
-	versionF, err := strconv.ParseFloat(majorMinor, 64)
-	if err != nil {
-		return 0, err
-	}
-	return versionF, nil
-}
-
-func vfkitExecutable() string {
-	vfkitBinaries := []string{"vfkit"}
-	for _, binary := range vfkitBinaries {
-		path, err := exec.LookPath(binary)
-		if err == nil && path != "" {
-			return path
-		}
-	}
-
-	return ""
-}
-
-func sshExec(cmd ...string) ([]byte, error) {
-	return vm.Run(cmd...)
-}
 
 func cleanup() {
 	_ = os.Remove(efiStore)

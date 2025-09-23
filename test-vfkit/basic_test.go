@@ -18,6 +18,10 @@ import (
 	"github.com/onsi/gomega"
 )
 
+func sshExec(cmd ...string) ([]byte, error) {
+	return vm.Run(cmd...)
+}
+
 var _ = ginkgo.Describe("connectivity with vfkit", func() {
 	e2e.BasicConnectivityTests(e2e.BasicTestProps{
 		SSHExec: sshExec,
