@@ -204,9 +204,6 @@ var _ = ginkgo.BeforeSuite(func() {
 	err = e2e_utils.CreateIgnition(ignFile, publicKey, ignitionUser, ignitionPasswordHash)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	_ = os.Remove(sock)
-	_ = os.Remove(vfkitSock)
-
 	host = gvproxyCmd()
 	if *debugEnabled {
 		gvproxyArgs := host.Args[1:]
