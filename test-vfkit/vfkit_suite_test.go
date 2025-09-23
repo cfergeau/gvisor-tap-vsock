@@ -44,8 +44,7 @@ const (
 var (
 	tmpDir         string
 	binDir         string
-	host           *exec.Cmd
-	client         *exec.Cmd
+	vm             *e2e_utils.VirtualMachine
 	privateKeyFile string
 	publicKeyFile  string
 	ignFile        string
@@ -136,7 +135,7 @@ var _ = ginkgo.BeforeSuite(func() {
 	err = e2e_utils.CreateIgnition(ignFile, publicKey, ignitionUser, ignitionPasswordHash)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	host = gvproxyCmd()
+	host := gvproxyCmd()
 	if *debugEnabled {
 		gvproxyArgs := host.Args[1:]
 		dlvArgs := []string{"debug", "--headless", "--listen=:2345", "--api-version=2", "--accept-multiclient", filepath.Join(cmdDir, "gvproxy"), "--"}
@@ -146,17 +145,20 @@ var _ = ginkgo.BeforeSuite(func() {
 
 	host.Stderr = os.Stderr
 	host.Stdout = os.Stdout
-	gomega.Expect(host.Start()).Should(gomega.Succeed())
-	err = e2e_utils.WaitGvproxy(host, sock, vfkitSock)
-	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-	log.Infof("gvproxy host: %p", host)
 
-	client, err = vfkitCmd(fcosImage)
+	client, err := vfkitCmd(fcosImage)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 	client.Stderr = os.Stderr
 	client.Stdout = os.Stdout
-	gomega.Expect(client.Start()).Should(gomega.Succeed())
-	err = e2e_utils.WaitSSH(client, sshExec)
+	vm, err = e2e_utils.NewVirtualMachine(client, host)
+	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+	vm.SetSSHConfig(&e2e_utils.SSHConfig{
+		IdentityPath:   privateKeyFile,
+		Port:           sshPort,
+		RemoteUsername: ignitionUser,
+	})
+	vm.SetGvproxySockets(vmConfig.ServicesSocket, vmConfig.NetworkSocket)
+	err = vm.Start()
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 })
 
@@ -191,18 +193,7 @@ func vfkitExecutable() string {
 }
 
 func sshExec(cmd ...string) ([]byte, error) {
-	return sshCommand(cmd...).Output()
-}
-
-func sshCommand(cmd ...string) *exec.Cmd {
-	sshCmd := exec.Command("ssh",
-		"-o", "UserKnownHostsFile=/dev/null",
-		"-o", "StrictHostKeyChecking=no",
-		"-o", "IdentitiesOnly=yes",
-		"-i", privateKeyFile,
-		"-p", strconv.Itoa(sshPort),
-		fmt.Sprintf("%s@127.0.0.1", ignitionUser), "--", strings.Join(cmd, " ")) // #nosec G204
-	return sshCmd
+	return vm.Run(cmd...)
 }
 
 func cleanup() {
@@ -216,45 +207,10 @@ func cleanup() {
 	_ = os.Remove(socketPath)
 }
 
-func scp(src, dst string) error {
-	sshCmd := exec.Command("/usr/bin/scp",
-		"-o", "UserKnownHostsFile=/dev/null",
-		"-o", "StrictHostKeyChecking=no",
-		"-o", "IdentitiesOnly=yes",
-		"-i", privateKeyFile,
-		"-P", strconv.Itoa(sshPort),
-		src, dst) // #nosec G204
-	sshCmd.Stderr = os.Stderr
-	sshCmd.Stdout = os.Stdout
-	return sshCmd.Run()
-}
-func scpToVM(src, dst string) error {
-	return scp(src, fmt.Sprintf("%s@127.0.0.1:%s", ignitionUser, dst))
-}
-
-func scpFromVM(src, dst string) error {
-	return scp(fmt.Sprintf("%s@127.0.0.1:%s", ignitionUser, src), dst)
-}
-
 var _ = ginkgo.AfterSuite(func() {
 	log.Infof("after suite")
-	log.Infof("host: %p", host)
-	if host != nil {
-		log.Infof("killing gvproxy")
-		if err := host.Process.Kill(); err != nil {
-			log.Infof("error killing gvproxy: %v", err)
-		} else {
-			log.Infof("no error")
-		}
-	}
-	if client != nil {
-		log.Infof("killing vfkit")
-		if err := client.Process.Kill(); err != nil {
-			log.Infof("error killing vfkit: %v", err)
-		} else {
-			log.Infof("no error")
-		}
-	}
+	err := vm.Kill()
+	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 	log.Infof("after kills")
 	cleanup()
 	log.Infof("after cleanup")
