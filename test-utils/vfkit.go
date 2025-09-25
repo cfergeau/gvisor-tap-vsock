@@ -16,10 +16,11 @@ import (
 type VirtualMachineConfig struct {
 	DiskImage      string
 	IgnitionFile   string
-	IgnitionSocket string
+	IgnitionSocket string // vfkit-specific
 	NetworkSocket  string
-	EFIStore       string
+	EFIStore       string // vfkit-specific
 	ServicesSocket string
+	Logfile        string // for now only used with qemu
 }
 
 func VfkitCmd(vmConfig *VirtualMachineConfig) (*exec.Cmd, error) {
