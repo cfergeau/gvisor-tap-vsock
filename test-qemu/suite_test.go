@@ -2,22 +2,17 @@ package e2eqemu
 
 import (
 	"flag"
-	"fmt"
 	"net"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strconv"
-	"strings"
 	"testing"
 	"time"
 
-	"github.com/containers/gvisor-tap-vsock/pkg/types"
 	e2e_utils "github.com/containers/gvisor-tap-vsock/test-utils"
 
 	"github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
-	log "github.com/sirupsen/logrus"
 )
 
 func TestSuite(t *testing.T) {
@@ -41,13 +36,12 @@ const (
 var (
 	tmpDir          string
 	binDir          string
-	host            *exec.Cmd
-	client          *exec.Cmd
 	privateKeyFile  string
 	publicKeyFile   string
 	ignFile         string
 	forwardSock     string
 	forwardRootSock string
+	qemuVm          *e2e_utils.VirtualMachine
 )
 
 func init() {
@@ -58,24 +52,27 @@ func init() {
 	ignFile = filepath.Join(tmpDir, "test.ign")
 	forwardSock = filepath.Join(tmpDir, "podman-remote.sock")
 	forwardRootSock = filepath.Join(tmpDir, "podman-root-remote.sock")
-
 }
 
+/*
 func gvproxyCmd() *exec.Cmd {
 	cmd := types.NewGvproxyCommand()
 	cmd.AddEndpoint(fmt.Sprintf("unix://%s", sock))
 	cmd.AddQemuSocket("tcp://" + net.JoinHostPort("127.0.0.1", strconv.Itoa(qemuPort)))
-	cmd.AddForwardSock(forwardSock)
-	cmd.AddForwardDest(podmanSock)
-	cmd.AddForwardUser(ignitionUser)
-	cmd.AddForwardIdentity(privateKeyFile)
+}
+*/
 
-	cmd.AddForwardSock(forwardRootSock)
-	cmd.AddForwardDest(podmanRootSock)
-	cmd.AddForwardUser("root")
-	cmd.AddForwardIdentity(privateKeyFile)
+func addSSHForwards(cfg *e2e_utils.QemuConfig) {
+	gvConfig := cfg.GvproxyConfig()
+	gvConfig.AddForwardSock(forwardSock)
+	gvConfig.AddForwardDest(podmanSock)
+	gvConfig.AddForwardUser(ignitionUser)
+	gvConfig.AddForwardIdentity(privateKeyFile)
 
-	return cmd.Cmd(filepath.Join(binDir, "gvproxy"))
+	gvConfig.AddForwardSock(forwardRootSock)
+	gvConfig.AddForwardDest(podmanRootSock)
+	gvConfig.AddForwardUser("root")
+	gvConfig.AddForwardIdentity(privateKeyFile)
 }
 
 var _ = ginkgo.BeforeSuite(func() {
@@ -93,74 +90,38 @@ var _ = ginkgo.BeforeSuite(func() {
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	_ = os.Remove(sock)
+	vmConfig := e2e_utils.VirtualMachineConfig{
+		DiskImage:      qemuImage,
+		IgnitionFile:   ignFile,
+		NetworkSocket:  net.JoinHostPort("127.0.0.1", strconv.Itoa(qemuPort)),
+		ServicesSocket: sock,
+		Logfile:        qconLog,
+	}
 
-	host = gvproxyCmd()
-	host.Stderr = os.Stderr
-	host.Stdout = os.Stdout
-	gomega.Expect(host.Start()).Should(gomega.Succeed())
-	err = e2e_utils.WaitGvproxy(host, sock)
+	qemuCfg := e2e_utils.NewQemuConfig(&vmConfig)
+	addSSHForwards(qemuCfg)
+	qemuVm, err = e2e_utils.NewQemuVirtualMachine(qemuCfg)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	qemuCmd := newQemuCmd()
-	qemuCmd.SetIgnition(ignFile)
-	qemuCmd.SetDrive(qemuImage, true)
-	qemuCmd.SetNetdevSocket(net.JoinHostPort("127.0.0.1", strconv.Itoa(qemuPort)), "5a:94:ef:e4:0c:ee")
-	qemuCmd.SetSerial(qconLog)
-	client, err = qemuCmd.Cmd(qemuExecutable())
-	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-	client.Stderr = os.Stderr
-	client.Stdout = os.Stdout
-	gomega.Expect(client.Start()).Should(gomega.Succeed())
-	err = e2e_utils.WaitSSH(client, sshExec)
+	qemuVm.SetSSHConfig(&e2e_utils.SSHConfig{
+		IdentityPath:   privateKeyFile,
+		Port:           sshPort,
+		RemoteUsername: ignitionUser,
+	})
+
+	err = qemuVm.Start()
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	err = scp(filepath.Join(binDir, "test-companion"), "/tmp/test-companion")
+	err = qemuVm.CopyToVM(filepath.Join(binDir, "test-companion"), "/tmp/test-companion")
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	// start an embedded DNS and http server in the VM. Wait a bit for the server to start.
-	cmd := sshCommand("sudo /tmp/test-companion")
+	cmd := qemuVm.SshCommand("sudo /tmp/test-companion")
 	gomega.Expect(cmd.Start()).ShouldNot(gomega.HaveOccurred())
 	time.Sleep(5 * time.Second)
 })
 
-func scp(src, dst string) error {
-	sshCmd := exec.Command("scp",
-		"-o", "UserKnownHostsFile=/dev/null",
-		"-o", "StrictHostKeyChecking=no",
-		"-o", "IdentitiesOnly=yes",
-		"-i", privateKeyFile,
-		"-P", strconv.Itoa(sshPort),
-		src,
-		fmt.Sprintf("%s@127.0.0.1:%s", ignitionUser, dst)) // #nosec G204
-	sshCmd.Stderr = os.Stderr
-	sshCmd.Stdout = os.Stdout
-	return sshCmd.Run()
-}
-
-func sshExec(cmd ...string) ([]byte, error) {
-	return sshCommand(cmd...).Output()
-}
-
-func sshCommand(cmd ...string) *exec.Cmd {
-	sshCmd := exec.Command("ssh",
-		"-o", "UserKnownHostsFile=/dev/null",
-		"-o", "StrictHostKeyChecking=no",
-		"-o", "IdentitiesOnly=yes",
-		"-i", privateKeyFile,
-		"-p", strconv.Itoa(sshPort),
-		fmt.Sprintf("%s@127.0.0.1", ignitionUser), "--", strings.Join(cmd, " ")) // #nosec G204
-	return sshCmd
-}
-
 var _ = ginkgo.AfterSuite(func() {
-	if host != nil {
-		if err := host.Process.Kill(); err != nil {
-			log.Error(err)
-		}
-	}
-	if client != nil {
-		if err := client.Process.Kill(); err != nil {
-			log.Error(err)
-		}
-	}
+	err := qemuVm.Kill()
+	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 })

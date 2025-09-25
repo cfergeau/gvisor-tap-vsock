@@ -20,6 +20,7 @@ type SSHConfig struct {
 	// RemoteUsername of the vm user
 	RemoteUsername string
 }
+
 type VirtualMachine struct {
 	gvproxyCmd *exec.Cmd
 	gvErrChan  chan error
@@ -97,10 +98,10 @@ func (vm *VirtualMachine) Kill() error {
 }
 
 func (vm *VirtualMachine) Run(cmd ...string) ([]byte, error) {
-	return vm.sshCommand(cmd...).Output()
+	return vm.SshCommand(cmd...).Output()
 }
 
-func (vm *VirtualMachine) sshCommand(cmd ...string) *exec.Cmd {
+func (vm *VirtualMachine) SshCommand(cmd ...string) *exec.Cmd {
 	sshCmd := exec.Command("ssh",
 		"-o", "UserKnownHostsFile=/dev/null",
 		"-o", "StrictHostKeyChecking=no",
