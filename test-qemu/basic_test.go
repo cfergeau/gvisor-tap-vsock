@@ -7,6 +7,10 @@ import (
 	"github.com/onsi/gomega"
 )
 
+func sshExec(cmd ...string) ([]byte, error) {
+	return qemuVm.Run(cmd...)
+}
+
 var _ = ginkgo.Describe("connectivity with qemu", func() {
 	e2e.BasicConnectivityTests(e2e.BasicTestProps{
 		SSHExec: sshExec,
