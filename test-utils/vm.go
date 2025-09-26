@@ -141,7 +141,7 @@ func (vm *VirtualMachine) Start() error {
 }
 
 func (vm *VirtualMachine) Kill() error {
-	if vm.gvproxyCmd != nil {
+	if vm.gvproxyProcess != nil {
 		log.Infof("killing gvproxy")
 		if err := vm.gvproxyProcess.Kill(); err != nil {
 			log.Infof("error killing gvproxy: %v", err)
@@ -150,7 +150,7 @@ func (vm *VirtualMachine) Kill() error {
 		}
 	}
 
-	if vm.hypervisorCmd != nil {
+	if vm.hypervisorProcess != nil {
 		log.Infof("killing hypervisor")
 		if err := vm.hypervisorProcess.Kill(); err != nil {
 			log.Infof("error killing hypervisor: %v", err)
