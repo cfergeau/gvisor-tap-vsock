@@ -80,6 +80,8 @@ func VfkitGvproxyCmd(vmConfig *VirtualMachineConfig) *types.GvproxyCommand {
 }
 
 func NewVfkitVirtualMachine(vmConfig *VirtualMachineConfig) (*VirtualMachine, error) {
+	// cannot be initialized early as `GinkgoT().TempDir()` cannot be called outside of specific locations
+	GvproxyAPISocket = filepath.Join(g.GinkgoT().TempDir(), "api.sock")
 	vmConfig.networkSocket = filepath.Join(g.GinkgoT().TempDir(), "net.sock")
 	vmConfig.servicesSocket = GvproxyAPISocket
 	vfkitCmd, err := VfkitCmd(vmConfig)

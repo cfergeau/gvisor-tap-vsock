@@ -7,16 +7,14 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strconv"
 	"strings"
 
 	gvproxyclient "github.com/containers/gvisor-tap-vsock/pkg/client"
-	g "github.com/onsi/ginkgo/v2"
 	log "github.com/sirupsen/logrus"
 )
 
-var GvproxyAPISocket = filepath.Join(g.GinkgoT().TempDir(), "api.sock")
+var GvproxyAPISocket string
 
 type VMKind int
 

@@ -40,11 +40,6 @@ var (
 
 func init() {
 	flag.StringVar(&binDir, "bin", "../bin", "directory with compiled binaries")
-	tmpDir = ginkgo.GinkgoT().TempDir()
-	privateKeyFile = filepath.Join(tmpDir, "id_test_qemu")
-	publicKeyFile = privateKeyFile + ".pub"
-	forwardSock = filepath.Join(tmpDir, "podman-remote.sock")
-	forwardRootSock = filepath.Join(tmpDir, "podman-root-remote.sock")
 }
 
 func addSSHForwards(vm *e2e_utils.VirtualMachine) {
@@ -61,6 +56,12 @@ func addSSHForwards(vm *e2e_utils.VirtualMachine) {
 }
 
 var _ = ginkgo.BeforeSuite(func() {
+	tmpDir = ginkgo.GinkgoT().TempDir()
+	privateKeyFile = filepath.Join(tmpDir, "id_test_qemu")
+	publicKeyFile = privateKeyFile + ".pub"
+	forwardSock = filepath.Join(tmpDir, "podman-remote.sock")
+	forwardRootSock = filepath.Join(tmpDir, "podman-root-remote.sock")
+
 	gomega.Expect(os.MkdirAll(filepath.Join("cache", "disks"), os.ModePerm)).Should(gomega.Succeed())
 
 	downloader, err := e2e_utils.NewFcosDownloader(filepath.Join("cache", "disks"))
@@ -71,7 +72,7 @@ var _ = ginkgo.BeforeSuite(func() {
 	publicKey, err := e2e_utils.CreateSSHKeys(publicKeyFile, privateKeyFile)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	ignFile := ginkgo.GinkgoT().TempDir()
+	ignFile := filepath.Join(tmpDir, "test.ign")
 	err = e2e_utils.CreateIgnition(ignFile, publicKey, ignitionUser, ignitionPasswordHash)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
