@@ -20,7 +20,7 @@ import (
 var _ = ginkgo.Describe("test performance with vfkit", func() {
 	PerfTest(e2e.BasicTestProps{
 		SSHExec: func(args ...string) ([]byte, error) { return vm.Run(args...) },
-		Sock:    vmConfig.ServicesSocket,
+		Sock:    vm.GvproxyAPISocket(),
 	})
 })
 
@@ -33,17 +33,20 @@ const (
 	// #nosec "test" (for manual usage)
 	ignitionPasswordHash = "$y$j9T$TqJWt3/mKJbH0sYi6B/LD1$QjVRuUgntjTHjAdAkqhkr4F73m.Be4jBXdAaKw98sPC" // notsecret
 	vfkitVersionNeeded   = 0.6
-	tmpDir               = "../tmp"
 )
 
 var (
-	vm       *e2e_utils.VirtualMachine
-	vmConfig = e2e_utils.VirtualMachineConfig{
-		IgnitionFile:   filepath.Join(tmpDir, "test.ign"),
-		IgnitionSocket: "/tmp/ignition.sock",
-		NetworkSocket:  "/tmp/vfkit.sock",
-		ServicesSocket: "/tmp/gvproxy-api-vfkit.sock",
-		EFIStore:       "efi-variable-store",
+	vm *e2e_utils.VirtualMachine
+)
+
+var _ = ginkgo.BeforeSuite(func() {
+	// clear the environment before running the tests. It may happen the tests were abruptly stopped earlier leaving a dirty env
+	// e2e_utils.VfkitCleanup(&vmConfig)
+
+	tmpDir := ginkgo.GinkgoT().TempDir()
+
+	vmConfig := e2e_utils.VirtualMachineConfig{
+		IgnitionFile: filepath.Join(tmpDir, "test.ign"),
 		SSHConfig: &e2e_utils.SSHConfig{
 			IdentityPath:   filepath.Join(tmpDir, "id_test"),
 			PublicKeyPath:  filepath.Join(tmpDir, "id_test.pub"),
@@ -51,12 +54,6 @@ var (
 			RemoteUsername: "test",
 		},
 	}
-)
-
-var _ = ginkgo.BeforeSuite(func() {
-	// clear the environment before running the tests. It may happen the tests were abruptly stopped earlier leaving a dirty env
-	e2e_utils.VfkitCleanup(&vmConfig)
-
 	// check if vfkit version is greater than v0.5 (ignition support is available starting from v0.6)
 	version, err := e2e_utils.VfkitVersion()
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -106,6 +103,6 @@ var _ = ginkgo.AfterSuite(func() {
 	err := vm.Kill()
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 	log.Infof("after kills")
-	e2e_utils.VfkitCleanup(&vmConfig)
+	// e2e_utils.VfkitCleanup(&vmConfig)
 	log.Infof("after cleanup")
 })

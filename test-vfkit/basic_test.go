@@ -31,19 +31,19 @@ var _ = ginkgo.Describe("connectivity with vfkit", func() {
 var _ = ginkgo.Describe("dns with vfkit", func() {
 	e2e.BasicDNSTests(e2e.BasicTestProps{
 		SSHExec: sshExec,
-		Sock:    sock,
+		Sock:    vm.GvproxyAPISocket(),
 	})
 })
 
 var _ = ginkgo.Describe("dhcp with vfkit", func() {
 	e2e.BasicDHCPTests(e2e.BasicTestProps{
 		SSHExec: sshExec,
-		Sock:    sock,
+		Sock:    vm.GvproxyAPISocket(),
 	})
 })
 
 var _ = ginkgo.Describe("upload and download with vfkit", func() {
-	tmpDir, err := os.MkdirTemp("", "vfkit")
+	tmpDir, err := os.MkdirTemp(ginkgo.GinkgoT().TempDir(), "cache")
 	gomega.Expect(err).NotTo(gomega.HaveOccurred())
 
 	sumMap := make(map[string]string)
