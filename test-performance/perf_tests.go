@@ -1,12 +1,8 @@
 package e2e_performance
 
 import (
-	"context"
-	"net"
-	"net/http"
 	"os/exec"
 
-	gvclient "github.com/containers/gvisor-tap-vsock/pkg/client"
 	"github.com/containers/gvisor-tap-vsock/pkg/types"
 	e2e "github.com/containers/gvisor-tap-vsock/test"
 	g "github.com/onsi/ginkgo/v2"
@@ -59,13 +55,7 @@ func PerfTest(props e2e.BasicTestProps) {
 
 		// server
 		g.By("exposing VM’s iperf3 5201 port on the host")
-		client := gvclient.New(&http.Client{
-			Transport: &http.Transport{
-				DialContext: func(_ context.Context, _, _ string) (net.Conn, error) {
-					return net.Dial("unix", props.Sock)
-				},
-			},
-		}, "http://base")
+		client := props.GvproxyAPIClient()
 		err = client.Expose(&types.ExposeRequest{
 			Local:    "127.0.0.1:5201",
 			Remote:   "192.168.127.2:5201",
