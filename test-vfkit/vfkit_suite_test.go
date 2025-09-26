@@ -4,13 +4,10 @@ package e2evfkit
 
 import (
 	"flag"
-	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"testing"
 
-	"github.com/containers/gvisor-tap-vsock/pkg/types"
 	e2e_utils "github.com/containers/gvisor-tap-vsock/test-utils"
 
 	"github.com/onsi/ginkgo/v2"
@@ -58,19 +55,6 @@ func init() {
 	cmdDir = "../cmd"
 }
 
-func gvproxyCmd() *exec.Cmd {
-	cmd := types.NewGvproxyCommand()
-	cmd.AddEndpoint(fmt.Sprintf("unix://%s", sock))
-	cmd.AddVfkitSocket("unixgram://" + vfkitSock)
-	cmd.SSHPort = sshPort
-
-	goCmd := cmd.Cmd(filepath.Join(binDir, "gvproxy"))
-	goCmd.Stderr = os.Stderr
-	goCmd.Stdout = os.Stdout
-
-	return goCmd
-}
-
 var _ = ginkgo.BeforeSuite(func() {
 	// clear the environment before running the tests. It may happen the tests were abruptly stopped earlier leaving a dirty env
 	cleanup()
@@ -107,14 +91,6 @@ var _ = ginkgo.BeforeSuite(func() {
 	err = e2e_utils.CreateIgnition(ignFile, publicKey, ignitionUser, ignitionPasswordHash)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	host := gvproxyCmd()
-	if *debugEnabled {
-		gvproxyArgs := host.Args[1:]
-		dlvArgs := []string{"debug", "--headless", "--listen=:2345", "--api-version=2", "--accept-multiclient", filepath.Join(cmdDir, "gvproxy"), "--"}
-		dlvArgs = append(dlvArgs, gvproxyArgs...)
-		host = exec.Command("dlv", dlvArgs...)
-	}
-
 	vmConfig := e2e_utils.VirtualMachineConfig{
 		DiskImage:      fcosImage,
 		IgnitionFile:   ignFile,
@@ -122,18 +98,25 @@ var _ = ginkgo.BeforeSuite(func() {
 		NetworkSocket:  vfkitSock,
 		ServicesSocket: sock,
 		EFIStore:       efiStore,
+		SSHConfig: &e2e_utils.SSHConfig{
+			IdentityPath:   privateKeyFile,
+			Port:           sshPort,
+			RemoteUsername: ignitionUser,
+		},
 	}
-	client, err := e2e_utils.VfkitCmd(&vmConfig)
+
+	/*
+		if *debugEnabled {
+			gvproxyArgs := host.Args[1:]
+			dlvArgs := []string{"debug", "--headless", "--listen=:2345", "--api-version=2", "--accept-multiclient", filepath.Join(cmdDir, "gvproxy"), "--"}
+			dlvArgs = append(dlvArgs, gvproxyArgs...)
+			host = exec.Command("dlv", dlvArgs...)
+		}
+	*/
+
+	vm, err := e2e_utils.NewVirtualMachine(e2e_utils.VFKit, &vmConfig)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	vm, err = e2e_utils.NewVirtualMachine(client, host)
-	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-	vm.SetSSHConfig(&e2e_utils.SSHConfig{
-		IdentityPath:   privateKeyFile,
-		Port:           sshPort,
-		RemoteUsername: ignitionUser,
-	})
-	vm.SetGvproxySockets(vmConfig.ServicesSocket, vmConfig.NetworkSocket)
 	err = vm.Start()
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 })

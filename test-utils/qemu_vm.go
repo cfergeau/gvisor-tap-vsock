@@ -44,11 +44,12 @@ func NewQemuVirtualMachine(vmConfig *VirtualMachineConfig) (*VirtualMachine, err
 	qemuCmd := defaultQemuConfig(vmConfig)
 	gvCmd := defaultGvproxyConfig(vmConfig)
 
-	vm, err := NewVirtualMachine(&QemuCmdBuilder{qemuCmd}, &GvproxyCmdBuilder{gvCmd})
+	vm, err := newVirtualMachine(&QemuCmdBuilder{qemuCmd}, &GvproxyCmdBuilder{gvCmd})
 	if err != nil {
 		return nil, err
 	}
 	vm.SetGvproxySockets(vmConfig.ServicesSocket)
+	vm.SetSSHConfig(vmConfig.SSHConfig)
 
 	return vm, nil
 }
@@ -67,6 +68,7 @@ func defaultGvproxyConfig(vmConfig *VirtualMachineConfig) *types.GvproxyCommand 
 	cmd := types.NewGvproxyCommand()
 	cmd.AddServiceEndpoint(fmt.Sprintf("unix://%s", vmConfig.ServicesSocket))
 	cmd.AddQemuSocket("tcp://" + vmConfig.NetworkSocket)
+	cmd.SSHPort = vmConfig.SSHConfig.Port
 
 	return &cmd
 }
