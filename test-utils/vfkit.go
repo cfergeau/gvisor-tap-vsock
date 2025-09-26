@@ -81,7 +81,7 @@ func VfkitGvproxyCmd(vmConfig *VirtualMachineConfig) *types.GvproxyCommand {
 
 func NewVfkitVirtualMachine(vmConfig *VirtualMachineConfig) (*VirtualMachine, error) {
 	vmConfig.networkSocket = filepath.Join(g.GinkgoT().TempDir(), "net.sock")
-	vmConfig.servicesSocket = filepath.Join(g.GinkgoT().TempDir(), "api.sock")
+	vmConfig.servicesSocket = GvproxyAPISocket
 	vfkitCmd, err := VfkitCmd(vmConfig)
 	if err != nil {
 		return nil, err

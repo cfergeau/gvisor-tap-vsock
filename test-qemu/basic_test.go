@@ -1,6 +1,7 @@
 package e2eqemu
 
 import (
+	gvproxyclient "github.com/containers/gvisor-tap-vsock/pkg/client"
 	"github.com/containers/gvisor-tap-vsock/pkg/types"
 	e2e "github.com/containers/gvisor-tap-vsock/test"
 	"github.com/onsi/ginkgo/v2"
@@ -11,6 +12,10 @@ func sshExec(cmd ...string) ([]byte, error) {
 	return vm.Run(cmd...)
 }
 
+func gvproxyAPIClient() *gvproxyclient.Client {
+	return vm.GvproxyAPIClient()
+}
+
 var _ = ginkgo.Describe("connectivity with qemu", func() {
 	e2e.BasicConnectivityTests(e2e.BasicTestProps{
 		SSHExec: sshExec,
@@ -19,15 +24,15 @@ var _ = ginkgo.Describe("connectivity with qemu", func() {
 
 var _ = ginkgo.Describe("dns with qemu", func() {
 	e2e.BasicDNSTests(e2e.BasicTestProps{
-		SSHExec: sshExec,
-		Sock:    vm.GvproxyAPISocket(),
+		SSHExec:          sshExec,
+		GvproxyAPIClient: gvproxyAPIClient,
 	})
 })
 
 var _ = ginkgo.Describe("dhcp with qemu", func() {
 	e2e.BasicDHCPTests(e2e.BasicTestProps{
-		SSHExec: sshExec,
-		Sock:    vm.GvproxyAPISocket(),
+		SSHExec:          sshExec,
+		GvproxyAPIClient: gvproxyAPIClient,
 	})
 })
 

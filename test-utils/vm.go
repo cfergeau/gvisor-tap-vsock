@@ -7,12 +7,16 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
 
 	gvproxyclient "github.com/containers/gvisor-tap-vsock/pkg/client"
+	g "github.com/onsi/ginkgo/v2"
 	log "github.com/sirupsen/logrus"
 )
+
+var GvproxyAPISocket = filepath.Join(g.GinkgoT().TempDir(), "api.sock")
 
 type VMKind int
 
@@ -82,8 +86,7 @@ func (vm *VirtualMachine) GvproxyCmdBuilder() *GvproxyCmdBuilder {
 }
 
 func (vm *VirtualMachine) GvproxyAPISocket() string {
-	// FIXME: no guarantee this will be populated, or that the first element will be the services endpoint
-	return vm.gvSockets[0]
+	return GvproxyAPISocket
 }
 
 func (vm *VirtualMachine) GvproxyAPIClient() *gvproxyclient.Client {
