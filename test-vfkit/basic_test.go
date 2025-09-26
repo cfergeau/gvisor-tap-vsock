@@ -48,7 +48,7 @@ var _ = ginkgo.Describe("dhcp with vfkit", func() {
 })
 
 var _ = ginkgo.Describe("upload and download with vfkit", func() {
-	tmpDir, err := os.MkdirTemp(ginkgo.GinkgoT().TempDir(), "cache")
+	tmpDir, err := os.MkdirTemp(tmpDir, "cache")
 	gomega.Expect(err).NotTo(gomega.HaveOccurred())
 
 	sumMap := make(map[string]string)

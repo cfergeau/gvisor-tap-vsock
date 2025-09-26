@@ -31,13 +31,14 @@ const (
 )
 
 var (
-	vm *e2e_utils.VirtualMachine
+	tmpDir string
+	vm     *e2e_utils.VirtualMachine
 )
 
 // var debugEnabled = flag.Bool("debug", false, "enable debugger")
 
 var _ = ginkgo.BeforeSuite(func() {
-	tmpDir := ginkgo.GinkgoT().TempDir()
+	tmpDir = ginkgo.GinkgoT().TempDir()
 
 	// check if vfkit version is greater than v0.5 (ignition support is available starting from v0.6)
 	version, err := e2e_utils.VfkitVersion()
