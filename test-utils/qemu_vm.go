@@ -44,7 +44,7 @@ func (cmd *GvproxyCmdBuilder) Cmd() (*exec.Cmd, error) {
 
 func NewQemuVirtualMachine(vmConfig *VirtualMachineConfig) (*VirtualMachine, error) {
 	vmConfig.networkSocket = net.JoinHostPort("127.0.0.1", "5555")
-	vmConfig.servicesSocket = filepath.Join(g.GinkgoT().TempDir(), "api.sock")
+	vmConfig.servicesSocket = GvproxyAPISocket
 	qemuCmd := defaultQemuConfig(vmConfig)
 	gvCmd := defaultGvproxyConfig(vmConfig)
 
