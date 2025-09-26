@@ -24,7 +24,7 @@ var _ = ginkgo.Describe("port forwarding", func() {
 	client := gvproxyclient.New(&http.Client{
 		Transport: &http.Transport{
 			DialContext: func(_ context.Context, _, _ string) (net.Conn, error) {
-				return net.Dial("unix", sock)
+				return net.Dial("unix", vm.GvproxyAPISocket())
 			},
 		},
 	}, "http://base")
@@ -110,7 +110,7 @@ var _ = ginkgo.Describe("port forwarding", func() {
 		httpClient := &http.Client{
 			Transport: &http.Transport{
 				DialContext: func(_ context.Context, _, _ string) (net.Conn, error) {
-					conn, err := net.Dial("unix", sock)
+					conn, err := net.Dial("unix", vm.GvproxyAPISocket())
 					if err != nil {
 						return nil, err
 					}

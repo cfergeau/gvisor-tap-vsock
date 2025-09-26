@@ -2,11 +2,13 @@ package e2eutils
 
 import (
 	"fmt"
+	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
 
 	"github.com/containers/gvisor-tap-vsock/pkg/types"
+	g "github.com/onsi/ginkgo/v2"
 )
 
 type CmdBuilder interface {
@@ -41,6 +43,8 @@ func (cmd *GvproxyCmdBuilder) Cmd() (*exec.Cmd, error) {
 }
 
 func NewQemuVirtualMachine(vmConfig *VirtualMachineConfig) (*VirtualMachine, error) {
+	vmConfig.networkSocket = net.JoinHostPort("127.0.0.1", "5555")
+	vmConfig.servicesSocket = filepath.Join(g.GinkgoT().TempDir(), "api.sock")
 	qemuCmd := defaultQemuConfig(vmConfig)
 	gvCmd := defaultGvproxyConfig(vmConfig)
 
@@ -48,7 +52,7 @@ func NewQemuVirtualMachine(vmConfig *VirtualMachineConfig) (*VirtualMachine, err
 	if err != nil {
 		return nil, err
 	}
-	vm.SetGvproxySockets(vmConfig.ServicesSocket)
+	vm.SetGvproxySockets(vmConfig.servicesSocket)
 	vm.SetSSHConfig(vmConfig.SSHConfig)
 
 	return vm, nil
@@ -58,16 +62,17 @@ func defaultQemuConfig(vmConfig *VirtualMachineConfig) *qemuCmd {
 	qemuCmd := newQemuCmd()
 	qemuCmd.SetIgnition(vmConfig.IgnitionFile)
 	qemuCmd.SetDrive(vmConfig.DiskImage, true)
-	qemuCmd.SetNetdevSocket(vmConfig.NetworkSocket, "5a:94:ef:e4:0c:ee")
-	qemuCmd.SetSerial(vmConfig.Logfile)
+	qemuCmd.SetNetdevSocket(vmConfig.networkSocket, "5a:94:ef:e4:0c:ee")
+	tmpDir := g.GinkgoT().TempDir()
+	qemuCmd.SetSerial(filepath.Join(tmpDir, "serial.log"))
 
 	return qemuCmd
 }
 
 func defaultGvproxyConfig(vmConfig *VirtualMachineConfig) *types.GvproxyCommand {
 	cmd := types.NewGvproxyCommand()
-	cmd.AddServiceEndpoint(fmt.Sprintf("unix://%s", vmConfig.ServicesSocket))
-	cmd.AddQemuSocket("tcp://" + vmConfig.NetworkSocket)
+	cmd.AddServiceEndpoint(fmt.Sprintf("unix://%s", vmConfig.servicesSocket))
+	cmd.AddQemuSocket("tcp://" + vmConfig.networkSocket)
 	cmd.SSHPort = vmConfig.SSHConfig.Port
 
 	return &cmd

@@ -8,7 +8,7 @@ import (
 )
 
 func sshExec(cmd ...string) ([]byte, error) {
-	return qemuVm.Run(cmd...)
+	return vm.Run(cmd...)
 }
 
 var _ = ginkgo.Describe("connectivity with qemu", func() {
@@ -20,14 +20,14 @@ var _ = ginkgo.Describe("connectivity with qemu", func() {
 var _ = ginkgo.Describe("dns with qemu", func() {
 	e2e.BasicDNSTests(e2e.BasicTestProps{
 		SSHExec: sshExec,
-		Sock:    sock,
+		Sock:    vm.GvproxyAPISocket(),
 	})
 })
 
 var _ = ginkgo.Describe("dhcp with qemu", func() {
 	e2e.BasicDHCPTests(e2e.BasicTestProps{
 		SSHExec: sshExec,
-		Sock:    sock,
+		Sock:    vm.GvproxyAPISocket(),
 	})
 })
 

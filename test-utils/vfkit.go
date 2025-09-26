@@ -4,27 +4,30 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
 
 	"github.com/containers/gvisor-tap-vsock/pkg/types"
 	vfkit "github.com/crc-org/vfkit/pkg/config"
+	g "github.com/onsi/ginkgo/v2"
 	"golang.org/x/mod/semver"
 )
 
 type VirtualMachineConfig struct {
-	DiskImage      string
-	IgnitionFile   string
-	IgnitionSocket string // vfkit-specific
-	NetworkSocket  string
-	EFIStore       string // vfkit-specific
-	ServicesSocket string
+	DiskImage    string
+	IgnitionFile string
+	// IgnitionSocket string // vfkit-specific
+	networkSocket string
+	// EFIStore       string // vfkit-specific
+	servicesSocket string
 	Logfile        string // for now only used with qemu
 	SSHConfig      *SSHConfig
 }
 
 func VfkitCmd(vmConfig *VirtualMachineConfig) (*vfkit.VirtualMachine, error) {
-	bootloader := vfkit.NewEFIBootloader(vmConfig.EFIStore, true)
+	tmpDir := g.GinkgoT().TempDir()
+	bootloader := vfkit.NewEFIBootloader(filepath.Join(tmpDir, "efistore"), true)
 	vm := vfkit.NewVirtualMachine(2, 2048, bootloader)
 	disk, err := vfkit.VirtioBlkNew(vmConfig.DiskImage)
 	if err != nil {
@@ -38,12 +41,12 @@ func VfkitCmd(vmConfig *VirtualMachineConfig) (*vfkit.VirtualMachine, error) {
 	if err != nil {
 		return nil, err
 	}
-	net.SetUnixSocketPath(vmConfig.NetworkSocket)
+	net.SetUnixSocketPath(vmConfig.networkSocket)
 	err = vm.AddDevice(net)
 	if err != nil {
 		return nil, err
 	}
-	ignition, err := vfkit.IgnitionNew(vmConfig.IgnitionFile, vmConfig.IgnitionSocket)
+	ignition, err := vfkit.IgnitionNew(vmConfig.IgnitionFile, filepath.Join(tmpDir, "ign.sock"))
 	if err != nil {
 		return nil, err
 	}
@@ -69,14 +72,16 @@ func (cmd *VfkitCmdBuilder) Cmd() (*exec.Cmd, error) {
 
 func VfkitGvproxyCmd(vmConfig *VirtualMachineConfig) *types.GvproxyCommand {
 	cmd := types.NewGvproxyCommand()
-	cmd.AddEndpoint(fmt.Sprintf("unix://%s", vmConfig.ServicesSocket))
-	cmd.AddVfkitSocket("unixgram://" + vmConfig.NetworkSocket)
+	cmd.AddEndpoint(fmt.Sprintf("unix://%s", vmConfig.servicesSocket))
+	cmd.AddVfkitSocket("unixgram://" + vmConfig.networkSocket)
 	cmd.SSHPort = vmConfig.SSHConfig.Port
 
 	return &cmd
 }
 
 func NewVfkitVirtualMachine(vmConfig *VirtualMachineConfig) (*VirtualMachine, error) {
+	vmConfig.networkSocket = filepath.Join(g.GinkgoT().TempDir(), "net.sock")
+	vmConfig.servicesSocket = filepath.Join(g.GinkgoT().TempDir(), "api.sock")
 	vfkitCmd, err := VfkitCmd(vmConfig)
 	if err != nil {
 		return nil, err
@@ -87,26 +92,10 @@ func NewVfkitVirtualMachine(vmConfig *VirtualMachineConfig) (*VirtualMachine, er
 	if err != nil {
 		return nil, err
 	}
-	vm.SetGvproxySockets(vmConfig.ServicesSocket, vmConfig.NetworkSocket)
+	vm.SetGvproxySockets(vmConfig.servicesSocket, vmConfig.networkSocket)
 	vm.SetSSHConfig(vmConfig.SSHConfig)
 
 	return vm, nil
-}
-
-func VfkitCleanup(vmConfig *VirtualMachineConfig) {
-	if vmConfig.EFIStore != "" {
-		_ = os.Remove(vmConfig.EFIStore)
-	}
-	// this is handled by vfkit since vfkit v0.6.1 released in March 2025
-	if vmConfig.IgnitionSocket != "" {
-		_ = os.Remove(vmConfig.IgnitionSocket)
-	}
-	if vmConfig.NetworkSocket != "" {
-		_ = os.Remove(vmConfig.NetworkSocket)
-	}
-	if vmConfig.ServicesSocket != "" {
-		_ = os.Remove(vmConfig.ServicesSocket)
-	}
 }
 
 func VfkitVersion() (float64, error) {
