@@ -22,17 +22,19 @@ type SSHConfig struct {
 }
 
 type VirtualMachine struct {
-	gvproxyCmd *exec.Cmd
+	gvproxyCmd     *GvproxyCmdBuilder
+	gvproxyProcess *os.Process
 	// gvErrChan  chan error
 	gvSockets []string
 
-	hypervisorCmd *exec.Cmd
+	hypervisorCmd     CmdBuilder
+	hypervisorProcess *os.Process
 	// hvErrChan     chan error
 
 	sshConfig SSHConfig
 }
 
-func NewVirtualMachine(hvCmd, gvCmd *exec.Cmd) (*VirtualMachine, error) {
+func NewVirtualMachine(hvCmd CmdBuilder, gvCmd *GvproxyCmdBuilder) (*VirtualMachine, error) {
 	if hvCmd == nil || gvCmd == nil {
 		return nil, fmt.Errorf("both hypervisor and gvproxy commands are required")
 	}
@@ -40,6 +42,10 @@ func NewVirtualMachine(hvCmd, gvCmd *exec.Cmd) (*VirtualMachine, error) {
 		gvproxyCmd:    gvCmd,
 		hypervisorCmd: hvCmd,
 	}, nil
+}
+
+func (vm *VirtualMachine) GvproxyCmdBuilder() *GvproxyCmdBuilder {
+	return vm.gvproxyCmd
 }
 
 func (vm *VirtualMachine) SetGvproxySockets(sockets ...string) {
@@ -52,22 +58,32 @@ func (vm *VirtualMachine) SetSSHConfig(config *SSHConfig) {
 
 func (vm *VirtualMachine) Start() error {
 	log.Debugf("starting gvproxy")
-	if err := vm.gvproxyCmd.Start(); err != nil {
+	gvGoCmd, err := vm.gvproxyCmd.Cmd()
+	if err != nil {
 		return err
 	}
-	if err := WaitGvproxy(vm.gvproxyCmd, vm.gvSockets...); err != nil {
+	if err := gvGoCmd.Start(); err != nil {
+		return err
+	}
+	vm.gvproxyProcess = gvGoCmd.Process
+	if err := WaitGvproxy(gvGoCmd, vm.gvSockets...); err != nil {
 		return err
 	}
 	log.Infof("gvproxy running")
 
 	log.Infof("starting hypervisor")
-	if err := vm.hypervisorCmd.Start(); err != nil {
+	hvGoCmd, err := vm.hypervisorCmd.Cmd()
+	if err != nil {
 		return err
 	}
+	if err := hvGoCmd.Start(); err != nil {
+		return err
+	}
+	vm.hypervisorProcess = hvGoCmd.Process
 	sshExec := func(cmd ...string) ([]byte, error) {
 		return vm.Run(cmd...)
 	}
-	if err := WaitSSH(vm.hypervisorCmd, sshExec); err != nil {
+	if err := WaitSSH(hvGoCmd, sshExec); err != nil {
 		return err
 	}
 	log.Infof("hypervisor running")
@@ -78,7 +94,7 @@ func (vm *VirtualMachine) Start() error {
 func (vm *VirtualMachine) Kill() error {
 	if vm.gvproxyCmd != nil {
 		log.Infof("killing gvproxy")
-		if err := vm.gvproxyCmd.Process.Kill(); err != nil {
+		if err := vm.gvproxyProcess.Kill(); err != nil {
 			log.Infof("error killing gvproxy: %v", err)
 		} else {
 			log.Infof("no error")
@@ -87,7 +103,7 @@ func (vm *VirtualMachine) Kill() error {
 
 	if vm.hypervisorCmd != nil {
 		log.Infof("killing hypervisor")
-		if err := vm.hypervisorCmd.Process.Kill(); err != nil {
+		if err := vm.hypervisorProcess.Kill(); err != nil {
 			log.Infof("error killing hypervisor: %v", err)
 		} else {
 			log.Infof("no error")
