@@ -23,11 +23,11 @@ type SSHConfig struct {
 
 type VirtualMachine struct {
 	gvproxyCmd *exec.Cmd
-	gvErrChan  chan error
-	gvSockets  []string
+	// gvErrChan  chan error
+	gvSockets []string
 
 	hypervisorCmd *exec.Cmd
-	hvErrChan     chan error
+	// hvErrChan     chan error
 
 	sshConfig SSHConfig
 }
