@@ -3,7 +3,7 @@
 package e2evfkit
 
 import (
-	"flag"
+	// "flag"
 	"os"
 	"path/filepath"
 	"testing"
@@ -23,41 +23,21 @@ func TestSuite(t *testing.T) {
 }
 
 const (
-	sock         = "/tmp/gvproxy-api-vfkit.sock"
-	vfkitSock    = "/tmp/vfkit.sock"
-	ignitionSock = "/tmp/ignition.sock"
 	sshPort      = 2223
 	ignitionUser = "test"
 	// #nosec "test" (for manual usage)
 	ignitionPasswordHash = "$y$j9T$TqJWt3/mKJbH0sYi6B/LD1$QjVRuUgntjTHjAdAkqhkr4F73m.Be4jBXdAaKw98sPC" // notsecret
-	efiStore             = "efi-variable-store"
 	vfkitVersionNeeded   = 0.6
 )
 
 var (
-	tmpDir         string
-	binDir         string
-	vm             *e2e_utils.VirtualMachine
-	privateKeyFile string
-	publicKeyFile  string
-	ignFile        string
-	cmdDir         string
+	vm *e2e_utils.VirtualMachine
 )
 
-var debugEnabled = flag.Bool("debug", false, "enable debugger")
-
-func init() {
-	flag.StringVar(&tmpDir, "tmpDir", "../tmp", "temporary working directory")
-	flag.StringVar(&binDir, "bin", "../bin", "directory with compiled binaries")
-	privateKeyFile = filepath.Join(tmpDir, "id_test_vfkit")
-	publicKeyFile = privateKeyFile + ".pub"
-	ignFile = filepath.Join(tmpDir, "test.ign")
-	cmdDir = "../cmd"
-}
+// var debugEnabled = flag.Bool("debug", false, "enable debugger")
 
 var _ = ginkgo.BeforeSuite(func() {
-	// clear the environment before running the tests. It may happen the tests were abruptly stopped earlier leaving a dirty env
-	cleanup()
+	tmpDir := ginkgo.GinkgoT().TempDir()
 
 	// check if vfkit version is greater than v0.5 (ignition support is available starting from v0.6)
 	version, err := e2e_utils.VfkitVersion()
@@ -85,25 +65,14 @@ var _ = ginkgo.BeforeSuite(func() {
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 	fcosImage = cloneFile
 
+	privateKeyFile := filepath.Join(tmpDir, "id_test_vfkit")
+	publicKeyFile := privateKeyFile + ".pub"
 	publicKey, err := e2e_utils.CreateSSHKeys(publicKeyFile, privateKeyFile)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
+	ignFile := filepath.Join(tmpDir, "test.ign")
 	err = e2e_utils.CreateIgnition(ignFile, publicKey, ignitionUser, ignitionPasswordHash)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-
-	vmConfig := e2e_utils.VirtualMachineConfig{
-		DiskImage:      fcosImage,
-		IgnitionFile:   ignFile,
-		IgnitionSocket: ignitionSock,
-		NetworkSocket:  vfkitSock,
-		ServicesSocket: sock,
-		EFIStore:       efiStore,
-		SSHConfig: &e2e_utils.SSHConfig{
-			IdentityPath:   privateKeyFile,
-			Port:           sshPort,
-			RemoteUsername: ignitionUser,
-		},
-	}
 
 	/*
 		if *debugEnabled {
@@ -114,29 +83,27 @@ var _ = ginkgo.BeforeSuite(func() {
 		}
 	*/
 
-	vm, err := e2e_utils.NewVirtualMachine(e2e_utils.VFKit, &vmConfig)
+	vmConfig := &e2e_utils.VirtualMachineConfig{
+		DiskImage:    fcosImage,
+		IgnitionFile: ignFile,
+		SSHConfig: &e2e_utils.SSHConfig{
+			IdentityPath:   privateKeyFile,
+			Port:           sshPort,
+			RemoteUsername: ignitionUser,
+		},
+	}
+	vm, err := e2e_utils.NewVirtualMachine(e2e_utils.VFKit, vmConfig)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	err = vm.Start()
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 })
 
-func cleanup() {
-	_ = os.Remove(efiStore)
-	_ = os.Remove(sock)
-	_ = os.Remove(vfkitSock)
-
-	// this is handled by vfkit since vfkit v0.6.1 released in March 2025
-	// it removes the ignition.sock file
-	socketPath := filepath.Join(os.TempDir(), "ignition.sock")
-	_ = os.Remove(socketPath)
-}
-
 var _ = ginkgo.AfterSuite(func() {
 	log.Infof("after suite")
 	err := vm.Kill()
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 	log.Infof("after kills")
-	cleanup()
+	// e2e_utils.VfkitCleanup(vmConfig)
 	log.Infof("after cleanup")
 })

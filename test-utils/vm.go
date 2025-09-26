@@ -77,6 +77,11 @@ func (vm *VirtualMachine) GvproxyCmdBuilder() *GvproxyCmdBuilder {
 	return vm.gvproxyCmd
 }
 
+func (vm *VirtualMachine) GvproxyAPISocket() string {
+	// FIXME: no guarantee this will be populated, or that the first element will be the services endpoint
+	return vm.gvSockets[0]
+}
+
 func (vm *VirtualMachine) SetGvproxySockets(sockets ...string) {
 	vm.gvSockets = sockets
 }
