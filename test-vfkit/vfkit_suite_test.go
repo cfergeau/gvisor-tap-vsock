@@ -93,7 +93,7 @@ var _ = ginkgo.BeforeSuite(func() {
 			RemoteUsername: ignitionUser,
 		},
 	}
-	vm, err := e2e_utils.NewVirtualMachine(e2e_utils.VFKit, vmConfig)
+	vm, err = e2e_utils.NewVirtualMachine(e2e_utils.VFKit, vmConfig)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	err = vm.Start()
