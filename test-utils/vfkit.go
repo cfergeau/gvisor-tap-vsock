@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -21,9 +20,10 @@ type VirtualMachineConfig struct {
 	EFIStore       string // vfkit-specific
 	ServicesSocket string
 	Logfile        string // for now only used with qemu
+	SSHConfig      *SSHConfig
 }
 
-func VfkitCmd(vmConfig *VirtualMachineConfig) (*exec.Cmd, error) {
+func VfkitCmd(vmConfig *VirtualMachineConfig) (*vfkit.VirtualMachine, error) {
 	bootloader := vfkit.NewEFIBootloader(vmConfig.EFIStore, true)
 	vm := vfkit.NewVirtualMachine(2, 2048, bootloader)
 	disk, err := vfkit.VirtioBlkNew(vmConfig.DiskImage)
@@ -48,26 +48,49 @@ func VfkitCmd(vmConfig *VirtualMachineConfig) (*exec.Cmd, error) {
 		return nil, err
 	}
 	vm.Ignition = ignition
-	goCmd, err := vm.Cmd(vfkitExecutable())
+
+	return vm, nil
+}
+
+type VfkitCmdBuilder struct {
+	*vfkit.VirtualMachine
+}
+
+func (cmd *VfkitCmdBuilder) Cmd() (*exec.Cmd, error) {
+	goCmd, err := cmd.VirtualMachine.Cmd(vfkitExecutable())
 	if err != nil {
 		return nil, err
 	}
-	goCmd.Stderr = os.Stderr
 	goCmd.Stdout = os.Stdout
+	goCmd.Stderr = os.Stderr
 
 	return goCmd, nil
 }
-func VfkitGvproxyCmd(vmConfig *VirtualMachineConfig, sshConfig *SSHConfig) *exec.Cmd {
+
+func VfkitGvproxyCmd(vmConfig *VirtualMachineConfig) *types.GvproxyCommand {
 	cmd := types.NewGvproxyCommand()
 	cmd.AddEndpoint(fmt.Sprintf("unix://%s", vmConfig.ServicesSocket))
 	cmd.AddVfkitSocket("unixgram://" + vmConfig.NetworkSocket)
-	cmd.SSHPort = sshConfig.Port
+	cmd.SSHPort = vmConfig.SSHConfig.Port
 
-	goCmd := cmd.Cmd(filepath.Join("..", "bin", "gvproxy"))
-	goCmd.Stderr = os.Stderr
-	goCmd.Stdout = os.Stdout
+	return &cmd
+}
 
-	return goCmd
+func NewVfkitVirtualMachine(vmConfig *VirtualMachineConfig) (*VirtualMachine, error) {
+	vfkitCmd, err := VfkitCmd(vmConfig)
+	if err != nil {
+		return nil, err
+	}
+	gvCmd := VfkitGvproxyCmd(vmConfig)
+
+	vm, err := newVirtualMachine(&VfkitCmdBuilder{vfkitCmd}, &GvproxyCmdBuilder{gvCmd})
+	if err != nil {
+		return nil, err
+	}
+	vm.SetGvproxySockets(vmConfig.ServicesSocket, vmConfig.NetworkSocket)
+	vm.SetSSHConfig(vmConfig.SSHConfig)
+
+	return vm, nil
 }
 
 func VfkitCleanup(vmConfig *VirtualMachineConfig) {

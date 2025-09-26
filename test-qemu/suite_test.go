@@ -96,17 +96,16 @@ var _ = ginkgo.BeforeSuite(func() {
 		NetworkSocket:  net.JoinHostPort("127.0.0.1", strconv.Itoa(qemuPort)),
 		ServicesSocket: sock,
 		Logfile:        qconLog,
+		SSHConfig: &e2e_utils.SSHConfig{
+			IdentityPath:   privateKeyFile,
+			Port:           sshPort,
+			RemoteUsername: ignitionUser,
+		},
 	}
 
-	qemuVm, err = e2e_utils.NewQemuVirtualMachine(&vmConfig)
+	qemuVm, err = e2e_utils.NewVirtualMachine(e2e_utils.QEMU, &vmConfig)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 	addSSHForwards(qemuVm)
-
-	qemuVm.SetSSHConfig(&e2e_utils.SSHConfig{
-		IdentityPath:   privateKeyFile,
-		Port:           sshPort,
-		RemoteUsername: ignitionUser,
-	})
 
 	err = qemuVm.Start()
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())

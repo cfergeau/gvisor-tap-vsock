@@ -10,6 +10,24 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+type VMKind int
+
+const (
+	QEMU VMKind = iota
+	VFKit
+)
+
+func (k VMKind) String() string {
+	switch k {
+	case QEMU:
+		return "qemu"
+	case VFKit:
+		return "vfkit"
+	default:
+		return ""
+	}
+}
+
 // SSHConfig contains remote access information for SSH
 type SSHConfig struct {
 	// IdentityPath is the fq path to the ssh priv key
@@ -34,7 +52,18 @@ type VirtualMachine struct {
 	sshConfig SSHConfig
 }
 
-func NewVirtualMachine(hvCmd CmdBuilder, gvCmd *GvproxyCmdBuilder) (*VirtualMachine, error) {
+func NewVirtualMachine(kind VMKind, vmConfig *VirtualMachineConfig) (*VirtualMachine, error) {
+	switch kind {
+	case QEMU:
+		return NewQemuVirtualMachine(vmConfig)
+	case VFKit:
+		return NewVfkitVirtualMachine(vmConfig)
+	default:
+		return nil, fmt.Errorf("unknown hypervisor kind: %d", kind)
+	}
+}
+
+func newVirtualMachine(hvCmd CmdBuilder, gvCmd *GvproxyCmdBuilder) (*VirtualMachine, error) {
 	if hvCmd == nil || gvCmd == nil {
 		return nil, fmt.Errorf("both hypervisor and gvproxy commands are required")
 	}
