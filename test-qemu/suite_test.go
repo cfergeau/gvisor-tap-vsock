@@ -62,8 +62,8 @@ func gvproxyCmd() *exec.Cmd {
 }
 */
 
-func addSSHForwards(cfg *e2e_utils.QemuConfig) {
-	gvConfig := cfg.GvproxyConfig()
+func addSSHForwards(vm *e2e_utils.VirtualMachine) {
+	gvConfig := vm.GvproxyCmdBuilder()
 	gvConfig.AddForwardSock(forwardSock)
 	gvConfig.AddForwardDest(podmanSock)
 	gvConfig.AddForwardUser(ignitionUser)
@@ -98,10 +98,9 @@ var _ = ginkgo.BeforeSuite(func() {
 		Logfile:        qconLog,
 	}
 
-	qemuCfg := e2e_utils.NewQemuConfig(&vmConfig)
-	addSSHForwards(qemuCfg)
-	qemuVm, err = e2e_utils.NewQemuVirtualMachine(qemuCfg)
+	qemuVm, err = e2e_utils.NewQemuVirtualMachine(&vmConfig)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+	addSSHForwards(qemuVm)
 
 	qemuVm.SetSSHConfig(&e2e_utils.SSHConfig{
 		IdentityPath:   privateKeyFile,
