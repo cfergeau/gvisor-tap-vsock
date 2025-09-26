@@ -12,7 +12,6 @@ import (
 	"runtime"
 	"time"
 
-	gvproxyclient "github.com/containers/gvisor-tap-vsock/pkg/client"
 	"github.com/containers/gvisor-tap-vsock/pkg/transport"
 	"github.com/containers/gvisor-tap-vsock/pkg/types"
 	"github.com/onsi/ginkgo/v2"
@@ -21,13 +20,7 @@ import (
 )
 
 var _ = ginkgo.Describe("port forwarding", func() {
-	client := gvproxyclient.New(&http.Client{
-		Transport: &http.Transport{
-			DialContext: func(_ context.Context, _, _ string) (net.Conn, error) {
-				return net.Dial("unix", vm.GvproxyAPISocket())
-			},
-		},
-	}, "http://base")
+	client := vm.GvproxyAPIClient()
 
 	ginkgo.It("should reach a http server on the host", func() {
 		ln, err := net.Listen("tcp", "127.0.0.1:9090")
