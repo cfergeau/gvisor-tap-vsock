@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -28,7 +29,18 @@ func (k VMKind) String() string {
 	case QEMU:
 		return "qemu"
 	case VFKit:
-		return "vfkit"
+		return "applehv"
+	default:
+		return ""
+	}
+}
+
+func (k VMKind) FcosFormatType() string {
+	switch k {
+	case QEMU:
+		return "qcow2.xz"
+	case VFKit:
+		return "raw.gz"
 	default:
 		return ""
 	}
@@ -95,6 +107,24 @@ func (vm *VirtualMachine) GvproxyAPIClient() *gvproxyclient.Client {
 			},
 		},
 	}, "http://base")
+}
+
+func FetchDiskImage(vmKind VMKind) (string, error) {
+	cachePath := filepath.Join("cache", "disks")
+	if err := os.MkdirAll(cachePath, os.ModePerm); err != nil {
+		return "", err
+	}
+
+	downloader, err := NewFcosDownloader(cachePath)
+	if err != nil {
+		return "", err
+	}
+	image, err := downloader.DownloadImage(vmKind.String(), vmKind.FcosFormatType())
+	if err != nil {
+		return "", err
+	}
+
+	return image, nil
 }
 
 func (vm *VirtualMachine) SetGvproxySockets(sockets ...string) {
