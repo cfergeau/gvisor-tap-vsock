@@ -55,9 +55,7 @@ var _ = ginkgo.BeforeSuite(func() {
 	if useCached {
 		fcosImage = "../tmp/disks/fedora-coreos-43.20250917.1.0-applehv.aarch64.raw"
 	} else {
-		downloader, err := e2e_utils.NewFcosDownloader(filepath.Join(tmpDir, "disks"))
-		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-		fcosImage, err = downloader.DownloadImage("applehv", "raw.gz")
+		fcosImage, err = e2e_utils.FetchDiskImage(e2e_utils.VFKit)
 		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 	}
 	cloneFile := "../tmp/disks/fcos-clone.raw"

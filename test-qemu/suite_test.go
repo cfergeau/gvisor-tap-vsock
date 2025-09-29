@@ -64,9 +64,7 @@ var _ = ginkgo.BeforeSuite(func() {
 
 	gomega.Expect(os.MkdirAll(filepath.Join("cache", "disks"), os.ModePerm)).Should(gomega.Succeed())
 
-	downloader, err := e2e_utils.NewFcosDownloader(filepath.Join("cache", "disks"))
-	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-	qemuImage, err := downloader.DownloadImage("qemu", "qcow2.xz")
+	fcosImage, err := e2e_utils.FetchDiskImage(e2e_utils.QEMU)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	publicKey, err := e2e_utils.CreateSSHKeys(publicKeyFile, privateKeyFile)
@@ -77,7 +75,7 @@ var _ = ginkgo.BeforeSuite(func() {
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	vmConfig := e2e_utils.VirtualMachineConfig{
-		DiskImage:    qemuImage,
+		DiskImage:    fcosImage,
 		IgnitionFile: ignFile,
 		SSHConfig: &e2e_utils.SSHConfig{
 			IdentityPath:   privateKeyFile,
