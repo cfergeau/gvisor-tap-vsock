@@ -26,6 +26,8 @@ const (
 
 	// #nosec "test" (for manual usage)
 	ignitionPasswordHash = "$y$j9T$TqJWt3/mKJbH0sYi6B/LD1$QjVRuUgntjTHjAdAkqhkr4F73m.Be4jBXdAaKw98sPC"
+
+	vmKind = e2e_utils.QEMU
 )
 
 var (
@@ -64,7 +66,7 @@ var _ = ginkgo.BeforeSuite(func() {
 
 	gomega.Expect(os.MkdirAll(filepath.Join("cache", "disks"), os.ModePerm)).Should(gomega.Succeed())
 
-	fcosImage, err := e2e_utils.FetchDiskImage(e2e_utils.QEMU)
+	fcosImage, err := e2e_utils.FetchDiskImage(vmKind)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	publicKey, err := e2e_utils.CreateSSHKeys(publicKeyFile, privateKeyFile)
@@ -84,7 +86,7 @@ var _ = ginkgo.BeforeSuite(func() {
 		},
 	}
 
-	vm, err = e2e_utils.NewVirtualMachine(e2e_utils.QEMU, &vmConfig)
+	vm, err = e2e_utils.NewVirtualMachine(vmKind, &vmConfig)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 	addSSHForwards(vm)
 
