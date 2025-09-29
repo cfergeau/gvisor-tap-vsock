@@ -28,6 +28,8 @@ const (
 	// #nosec "test" (for manual usage)
 	ignitionPasswordHash = "$y$j9T$TqJWt3/mKJbH0sYi6B/LD1$QjVRuUgntjTHjAdAkqhkr4F73m.Be4jBXdAaKw98sPC" // notsecret
 	vfkitVersionNeeded   = 0.6
+
+	vmKind = e2e_utils.VFKit
 )
 
 var (
@@ -55,7 +57,7 @@ var _ = ginkgo.BeforeSuite(func() {
 	if useCached {
 		fcosImage = "../tmp/disks/fedora-coreos-43.20250917.1.0-applehv.aarch64.raw"
 	} else {
-		fcosImage, err = e2e_utils.FetchDiskImage(e2e_utils.VFKit)
+		fcosImage, err = e2e_utils.FetchDiskImage(vmKind)
 		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 	}
 	cloneFile := "../tmp/disks/fcos-clone.raw"
@@ -91,7 +93,7 @@ var _ = ginkgo.BeforeSuite(func() {
 			RemoteUsername: ignitionUser,
 		},
 	}
-	vm, err = e2e_utils.NewVirtualMachine(e2e_utils.VFKit, vmConfig)
+	vm, err = e2e_utils.NewVirtualMachine(vmKind, vmConfig)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	err = vm.Start()
