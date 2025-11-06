@@ -27,7 +27,7 @@ const (
 	// #nosec "test" (for manual usage)
 	ignitionPasswordHash = "$y$j9T$TqJWt3/mKJbH0sYi6B/LD1$QjVRuUgntjTHjAdAkqhkr4F73m.Be4jBXdAaKw98sPC"
 
-	vmKind = e2e_utils.QEMU
+	vmKind = e2e_utils.VFKit
 )
 
 var (
