@@ -3,7 +3,6 @@
 package e2evfkit
 
 import (
-	// "flag"
 	"os"
 	"path/filepath"
 	"testing"
@@ -102,6 +101,12 @@ var _ = ginkgo.BeforeSuite(func() {
 
 var _ = ginkgo.AfterSuite(func() {
 	log.Infof("after suite")
+
+	log.Infof("terminating processes")
+	// err := vm.Terminate()
+	// gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+	// time.Sleep(5 * time.Second)
+	log.Infof("killing processes")
 	err := vm.Kill()
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 	log.Infof("after kills")
