@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"syscall"
 
 	gvproxyclient "github.com/containers/gvisor-tap-vsock/pkg/client"
 	log "github.com/sirupsen/logrus"
@@ -170,6 +171,27 @@ func (vm *VirtualMachine) Start() error {
 	return nil
 }
 
+func (vm *VirtualMachine) Terminate() error {
+	if vm.gvproxyProcess != nil {
+		log.Infof("terminating gvproxy")
+		if err := vm.gvproxyProcess.Signal(syscall.SIGTERM); err != nil {
+			log.Infof("error terminating gvproxy: %v", err)
+		} else {
+			log.Infof("no error")
+		}
+	}
+
+	if vm.hypervisorProcess != nil {
+		log.Infof("terminating hypervisor")
+		if err := vm.hypervisorProcess.Signal(syscall.SIGTERM); err != nil {
+			log.Infof("error terminating hypervisor: %v", err)
+		} else {
+			log.Infof("no error")
+		}
+	}
+
+	return nil
+}
 func (vm *VirtualMachine) Kill() error {
 	if vm.gvproxyProcess != nil {
 		log.Infof("killing gvproxy")
