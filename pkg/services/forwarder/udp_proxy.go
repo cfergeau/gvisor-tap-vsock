@@ -4,6 +4,7 @@ package forwarder
 // https://github.com/moby/vpnkit/blob/master/go/pkg/libproxy/udp_proxy.go
 
 import (
+	"context"
 	"encoding/binary"
 	"errors"
 	"io"
@@ -12,6 +13,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/containers/gvisor-tap-vsock/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -66,6 +68,31 @@ func NewUDPProxy(listener udpConn, dialer func() (net.Conn, error)) (*UDPProxy, 
 	}, nil
 }
 
+func RetryRead(proxyConn net.Conn, readBuf []byte) (int, error) {
+	deadline := time.Now().Add(UDPConnTrackTimeout)
+	_ = proxyConn.SetReadDeadline(deadline)
+	ctx, cancel := context.WithDeadline(context.Background(), deadline)
+	defer cancel()
+
+	retryRead := func() (int, error) {
+		read, err := proxyConn.Read(readBuf)
+		if err != nil {
+			if errors.Is(err, syscall.ECONNREFUSED) {
+				// This will happen if the last write failed
+				// (e.g: nothing is actually listening on the
+				// proxied port on the container), ignore it
+				// and continue until UDPConnTrackTimeout
+				// expires:
+				return read, err
+			}
+			return read, utils.NewNonRetriableError(err)
+		}
+		return read, err
+	}
+
+	return utils.RetryWithInitialBackoff(ctx, retryRead, "waiting for successful UDP read", 0)
+}
+
 func (proxy *UDPProxy) replyLoop(proxyConn net.Conn, clientAddr net.Addr, clientKey *connTrackKey) {
 	defer func() {
 		proxy.connTrackLock.Lock()
@@ -76,20 +103,11 @@ func (proxy *UDPProxy) replyLoop(proxyConn net.Conn, clientAddr net.Addr, client
 
 	readBuf := make([]byte, UDPBufSize)
 	for {
-		_ = proxyConn.SetReadDeadline(time.Now().Add(UDPConnTrackTimeout))
-	again:
-		read, err := proxyConn.Read(readBuf)
+		read, err := RetryRead(proxyConn, readBuf)
 		if err != nil {
-			if errors.Is(err, syscall.ECONNREFUSED) {
-				// This will happen if the last write failed
-				// (e.g: nothing is actually listening on the
-				// proxied port on the container), ignore it
-				// and continue until UDPConnTrackTimeout
-				// expires:
-				goto again
-			}
 			return
 		}
+
 		for i := 0; i != read; {
 			written, err := proxy.listener.WriteTo(readBuf[i:read], clientAddr)
 			if err != nil {

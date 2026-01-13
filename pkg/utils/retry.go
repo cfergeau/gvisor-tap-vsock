@@ -2,6 +2,7 @@ package utils
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -11,7 +12,27 @@ import (
 const maxRetries = 60
 const initialBackoff = 100 * time.Millisecond
 
+type NonRetriableError struct {
+	Err error
+}
+
+func NewNonRetriableError(err error) error {
+	return &NonRetriableError{Err: err}
+}
+
+func (err *NonRetriableError) Error() string {
+	return err.Err.Error()
+}
+
+func (err *NonRetriableError) Unwrap() error {
+	return err.Err
+}
+
 func Retry[T comparable](ctx context.Context, retryFunc func() (T, error), retryMsg string) (T, error) {
+	return RetryWithInitialBackoff(ctx, retryFunc, retryMsg, initialBackoff)
+}
+
+func RetryWithInitialBackoff[T comparable](ctx context.Context, retryFunc func() (T, error), retryMsg string, initialBackoff time.Duration) (T, error) {
 	var (
 		returnVal T
 		err       error
@@ -31,6 +52,10 @@ loop:
 		returnVal, err = retryFunc()
 		if err == nil {
 			return returnVal, nil
+		}
+		var nonRetriableErr *NonRetriableError
+		if errors.As(err, &nonRetriableErr) {
+			return returnVal, nonRetriableErr.Err
 		}
 		logrus.Debugf("%s (%s)", retryMsg, backoff)
 		Sleep(ctx, backoff)
