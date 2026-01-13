@@ -132,7 +132,7 @@ func run(ctx context.Context, g *errgroup.Group, config *GvproxyConfig) error {
 		if err != nil {
 			return fmt.Errorf("cannot listen: %w", err)
 		}
-		httpServe(ctx, g, ln, withProfiler(vn))
+		httpServe(ctx, g, ln, withProfiler(vn.Mux()))
 	}
 
 	if config.Services != "" {
@@ -141,7 +141,14 @@ func run(ctx context.Context, g *errgroup.Group, config *GvproxyConfig) error {
 		if err != nil {
 			return fmt.Errorf("cannot listen: %w", err)
 		}
-		httpServe(ctx, g, ln, vn.ServicesMux())
+		httpServe(ctx, g, ln, withProfiler(vn.ServicesMux()))
+	}
+
+	if InDebugMode() && len(config.Listen) == 0 && config.Services == "" {
+		log.Infof("starting pprof http server on localhost:6060")
+		go func() {
+			log.Infof("%v", http.ListenAndServe("localhost:6060", nil))
+		}()
 	}
 
 	ln, err := vn.Listen("tcp", fmt.Sprintf("%s:80", config.Stack.GatewayIP))
@@ -350,8 +357,7 @@ func httpServe(ctx context.Context, g *errgroup.Group, ln net.Listener, mux http
 	})
 }
 
-func withProfiler(vn *virtualnetwork.VirtualNetwork) http.Handler {
-	mux := vn.Mux()
+func withProfiler(mux *http.ServeMux) http.Handler {
 	if InDebugMode() {
 		mux.HandleFunc("/debug/pprof/", pprof.Index)
 		mux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
