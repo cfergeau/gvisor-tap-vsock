@@ -80,7 +80,7 @@ func (proxy *UDPProxy) replyLoop(proxyConn net.Conn, clientAddr net.Addr, client
 	again:
 		read, err := proxyConn.Read(readBuf)
 		if err != nil {
-			if err, ok := err.(*net.OpError); ok && err.Err == syscall.ECONNREFUSED {
+			if errors.Is(err, syscall.ECONNREFUSED) {
 				// This will happen if the last write failed
 				// (e.g: nothing is actually listening on the
 				// proxied port on the container), ignore it
