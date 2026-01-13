@@ -20,7 +20,7 @@ func Retry[T comparable](ctx context.Context, retryFunc func() (T, error), retry
 	backoff := initialBackoff
 
 loop:
-	for i := 0; i < maxRetries; i++ {
+	for range maxRetries {
 		select {
 		case <-ctx.Done():
 			break loop

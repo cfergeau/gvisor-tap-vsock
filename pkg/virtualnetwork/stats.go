@@ -7,7 +7,7 @@ import (
 )
 
 func iterateFields(ret map[string]interface{}, valueOf reflect.Value) {
-	for i := 0; i < valueOf.NumField(); i++ {
+	for i := range valueOf.NumField() {
 		field := valueOf.Field(i)
 		fieldName := valueOf.Type().Field(i).Name
 		if field.Kind() == reflect.Struct {
