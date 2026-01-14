@@ -76,11 +76,21 @@ func (proxy *UDPProxy) replyLoop(proxyConn net.Conn, clientAddr net.Addr, client
 
 	readBuf := make([]byte, UDPBufSize)
 	for {
+		log.Infof("replyLoop %s", clientAddr.String())
 		_ = proxyConn.SetReadDeadline(time.Now().Add(UDPConnTrackTimeout))
+		retryCount := 0
 	again:
+
+		if retryCount < 50 || retryCount%50 == 0 {
+			log.Infof("before read %s", clientAddr.String())
+		}
 		read, err := proxyConn.Read(readBuf)
 		if err != nil {
 			if err, ok := err.(*net.OpError); ok && err.Err == syscall.ECONNREFUSED {
+				retryCount++
+				if retryCount < 50 || retryCount%50 == 0 {
+					log.Infof("replyLoop: ECONNREFUSED, retry")
+				}
 				// This will happen if the last write failed
 				// (e.g: nothing is actually listening on the
 				// proxied port on the container), ignore it
@@ -89,6 +99,9 @@ func (proxy *UDPProxy) replyLoop(proxyConn net.Conn, clientAddr net.Addr, client
 				goto again
 			}
 			return
+		}
+		if retryCount < 50 || retryCount%50 == 0 {
+			log.Infof("before write %s", clientAddr.String())
 		}
 		for i := 0; i != read; {
 			written, err := proxy.listener.WriteTo(readBuf[i:read], clientAddr)
@@ -121,7 +134,7 @@ func (proxy *UDPProxy) Run() {
 		if !hit {
 			proxyConn, err = proxy.dialer()
 			if err != nil {
-				log.Errorf("Can't proxy a datagram to udp: %s\n", err)
+				log.Errorf("Can't proxy a datagram to udp (dial): %s\n", err)
 				proxy.connTrackLock.Unlock()
 				continue
 			}
@@ -133,7 +146,7 @@ func (proxy *UDPProxy) Run() {
 			_ = proxyConn.SetReadDeadline(time.Now().Add(UDPConnTrackTimeout))
 			written, err := proxyConn.Write(readBuf[i:read])
 			if err != nil {
-				log.Errorf("Can't proxy a datagram to udp: %s\n", err)
+				log.Errorf("Can't proxy a datagram to udp (write): %s\n", err)
 				break
 			}
 			i += written
