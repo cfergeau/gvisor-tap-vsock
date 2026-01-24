@@ -167,6 +167,8 @@ stack:
     gatewayIP: 192.168.127.1
     deviceIP: 192.168.127.2
     hostIP: 192.168.127.254
+    gatewayIPv6: "fd00::1"
+    subnetIPv6: "fd00::/64"
     gatewayMacAddress: 5a:94:ef:e4:0c:dd
     dns:
         - name: containers.internal.
@@ -175,12 +177,16 @@ stack:
               ip: 192.168.127.1
             - name: host
               ip: 192.168.127.254
+            - name: gateway
+              ip: "fd00::1"
         - name: docker.internal.
           records:
             - name: gateway
               ip: 192.168.127.1
             - name: host
               ip: 192.168.127.254
+            - name: gateway
+              ip: "fd00::1"
     forwards:
         127.0.0.1:2222: 192.168.127.2:22
     nat:
@@ -206,6 +212,8 @@ stack:
     gatewayIP: 192.168.127.1
     deviceIP: 192.168.127.2
     hostIP: 192.168.127.254
+    gatewayIPv6: "fd00::1"
+    subnetIPv6: "fd00::/64"
     gatewayMacAddress: 5a:94:ef:e4:0c:dd
     dns:
         - name: containers.internal.
@@ -214,12 +222,16 @@ stack:
               ip: 192.168.127.1
             - name: host
               ip: 192.168.127.254
+            - name: gateway
+              ip: "fd00::1"
         - name: docker.internal.
           records:
             - name: gateway
               ip: 192.168.127.1
             - name: host
               ip: 192.168.127.254
+            - name: gateway
+              ip: "fd00::1"
     forwards:
         127.0.0.1:2222: 192.168.127.2:22
     nat:
@@ -248,6 +260,8 @@ stack:
     gatewayIP: 192.168.127.1
     deviceIP: 192.168.127.2
     hostIP: 192.168.127.254
+    gatewayIPv6: "fd00::1"
+    subnetIPv6: "fd00::/64"
     gatewayMacAddress: 5a:94:ef:e4:0c:dd
     dns:
         - name: containers.internal.
@@ -256,12 +270,16 @@ stack:
               ip: 192.168.127.1
             - name: host
               ip: 192.168.127.254
+            - name: gateway
+              ip: "fd00::1"
         - name: docker.internal.
           records:
             - name: gateway
               ip: 192.168.127.1
             - name: host
               ip: 192.168.127.254
+            - name: gateway
+              ip: "fd00::1"
     forwards:
         127.0.0.1:2222: 192.168.127.2:22
     nat:
@@ -290,6 +308,8 @@ stack:
     gatewayIP: 192.168.127.1
     deviceIP: 192.168.127.2
     hostIP: 192.168.127.254
+    gatewayIPv6: "fd00::1"
+    subnetIPv6: "fd00::/64"
     gatewayMacAddress: 5a:94:ef:e4:0c:dd
     dns:
         - name: containers.internal.
@@ -298,12 +318,16 @@ stack:
               ip: 192.168.127.1
             - name: host
               ip: 192.168.127.254
+            - name: gateway
+              ip: "fd00::1"
         - name: docker.internal.
           records:
             - name: gateway
               ip: 192.168.127.1
             - name: host
               ip: 192.168.127.254
+            - name: gateway
+              ip: "fd00::1"
     forwards:
         127.0.0.1:2222: 192.168.127.2:22
     nat:
@@ -332,6 +356,8 @@ stack:
     gatewayIP: 192.168.127.1
     deviceIP: 192.168.127.2
     hostIP: 192.168.127.254
+    gatewayIPv6: "fd00::1"
+    subnetIPv6: "fd00::/64"
     gatewayMacAddress: 5a:94:ef:e4:0c:dd
     dns:
         - name: containers.internal.
@@ -340,12 +366,16 @@ stack:
               ip: 192.168.127.1
             - name: host
               ip: 192.168.127.254
+            - name: gateway
+              ip: "fd00::1"
         - name: docker.internal.
           records:
             - name: gateway
               ip: 192.168.127.1
             - name: host
               ip: 192.168.127.254
+            - name: gateway
+              ip: "fd00::1"
     forwards:
         127.0.0.1:2222: 192.168.127.2:22
     nat:
@@ -374,6 +404,8 @@ stack:
     gatewayIP: 192.168.127.1
     deviceIP: 192.168.127.2
     hostIP: 192.168.127.254
+    gatewayIPv6: "fd00::1"
+    subnetIPv6: "fd00::/64"
     gatewayMacAddress: 5a:94:ef:e4:0c:dd
     dns:
         - name: containers.internal.
@@ -382,12 +414,16 @@ stack:
               ip: 192.168.127.1
             - name: host
               ip: 192.168.127.254
+            - name: gateway
+              ip: "fd00::1"
         - name: docker.internal.
           records:
             - name: gateway
               ip: 192.168.127.1
             - name: host
               ip: 192.168.127.254
+            - name: gateway
+              ip: "fd00::1"
     forwards:
         127.0.0.1:2222: 192.168.127.2:22
     nat:
@@ -413,6 +449,8 @@ stack:
     gatewayIP: 192.168.127.1
     deviceIP: 192.168.127.2
     hostIP: 192.168.127.254
+    gatewayIPv6: "fd00::1"
+    subnetIPv6: "fd00::/64"
     gatewayMacAddress: 5a:94:ef:e4:0c:dd
     nat:
         192.168.127.254: 127.0.0.1
@@ -437,6 +475,8 @@ stack:
     gatewayIP: 192.168.127.1
     deviceIP: 192.168.127.2
     hostIP: 192.168.127.254
+    gatewayIPv6: "fd00::1"
+    subnetIPv6: "fd00::/64"
     gatewayMacAddress: 5a:94:ef:e4:0c:dd
     nat:
         192.168.127.254: 127.0.0.1
@@ -466,6 +506,8 @@ stack:
     gatewayIP: 10.0.0.1
     deviceIP: 10.0.0.2
     hostIP: 10.0.255.254
+    gatewayIPv6: "fd00::1"
+    subnetIPv6: "fd00::/64"
     gatewayMacAddress: "10:11:11:11:11:00"
     nat:
         10.0.255.254: 127.0.0.1
@@ -490,6 +532,8 @@ stack:
     gatewayIP: 10.0.0.1
     deviceIP: 10.0.0.2
     hostIP: 10.0.255.254
+    gatewayIPv6: "fd00::1"
+    subnetIPv6: "fd00::/64"
     gatewayMacAddress: 5a:94:ef:e4:0c:dd
     nat:
         10.0.255.254: 127.0.0.1
@@ -518,6 +562,8 @@ stack:
     gatewayIP: 10.0.0.1
     deviceIP: 10.0.0.2
     hostIP: 10.0.255.254
+    gatewayIPv6: "fd00::1"
+    subnetIPv6: "fd00::/64"
     gatewayMacAddress: 5a:94:ef:e4:0c:dd
     forwards:
         127.0.0.1:59022: 192.168.127.2:22
@@ -547,6 +593,8 @@ stack:
     gatewayIP: 10.0.0.1
     deviceIP: 10.0.0.2
     hostIP: 10.0.255.254
+    gatewayIPv6: "fd00::1"
+    subnetIPv6: "fd00::/64"
     gatewayMacAddress: 5a:94:ef:e4:0c:dd
     nat:
         10.0.255.254: 127.0.0.1
@@ -572,6 +620,8 @@ stack:
     gatewayIP: 192.168.127.1
     deviceIP: 192.168.127.2
     hostIP: 192.168.127.254
+    gatewayIPv6: "fd00::1"
+    subnetIPv6: "fd00::/64"
     gatewayMacAddress: 5a:94:ef:e4:0c:dd
     nat:
         192.168.127.254: 127.0.0.1
@@ -591,6 +641,8 @@ stack:
     gatewayIP: 192.168.127.1
     deviceIP: 192.168.127.2
     hostIP: 192.168.127.254
+    gatewayIPv6: "fd00::1"
+    subnetIPv6: "fd00::/64"
     gatewayMacAddress: 5a:94:ef:e4:0c:dd
     nat:
         192.168.127.254: 127.0.0.1
@@ -611,6 +663,8 @@ stack:
     gatewayIP: 192.168.127.1
     deviceIP: 192.168.127.2
     hostIP: 192.168.127.254
+    gatewayIPv6: "fd00::1"
+    subnetIPv6: "fd00::/64"
     gatewayMacAddress: 5a:94:ef:e4:0c:dd
     dns:
         - name: containers.internal.
@@ -619,12 +673,16 @@ stack:
               ip: 192.168.127.1
             - name: host
               ip: 192.168.127.254
+            - name: gateway
+              ip: "fd00::1"
         - name: docker.internal.
           records:
             - name: gateway
               ip: 192.168.127.1
             - name: host
               ip: 192.168.127.254
+            - name: gateway
+              ip: "fd00::1"
     forwards:
         127.0.0.1:2222: 192.168.127.2:22
     nat:
