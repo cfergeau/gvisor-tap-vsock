@@ -2,6 +2,8 @@ package tap
 
 import (
 	"encoding/binary"
+	"errors"
+	"math"
 
 	"gvisor.dev/gvisor/pkg/buffer"
 	"gvisor.dev/gvisor/pkg/tcpip"
@@ -56,12 +58,16 @@ func raBuf(
 		return nil, err
 	}
 
-	payloadLength := icmpSize
+	if icmpSize < 0 || icmpSize > math.MaxUint16 {
+		return nil, errors.New("overflow")
+
+	}
+	payloadLength := uint16(icmpSize)
 	iph := header.IPv6(make([]byte, header.IPv6MinimumSize))
 	iph.Encode(&header.IPv6Fields{
 		TrafficClass:      0,
 		FlowLabel:         0,
-		PayloadLength:     uint16(payloadLength),
+		PayloadLength:     payloadLength,
 		TransportProtocol: icmp.ProtocolNumber6,
 		HopLimit:          header.NDPHopLimit,
 		SrcAddr:           ip,

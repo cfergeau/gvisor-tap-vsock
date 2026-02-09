@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"net"
 	"sync"
 	"sync/atomic"
@@ -307,6 +308,9 @@ func (e *Switch) rxBuf(_ context.Context, id int, buf []byte) {
 						_, ipnet, err := net.ParseCIDR(subnetIPv6)
 						if err == nil {
 							prefixLen, _ := ipnet.Mask.Size()
+							if prefixLen < 0 || prefixLen > math.MaxUint8 {
+								log.Error(err)
+							}
 							ndpOpts = append(
 								ndpOpts,
 								makePrefixInfo(
