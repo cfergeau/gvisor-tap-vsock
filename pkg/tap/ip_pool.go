@@ -9,10 +9,11 @@ import (
 )
 
 type IPPool struct {
-	base   *net.IPNet
-	leases map[string]string
-	lock   sync.Mutex
-	next   *big.Int
+	base     *net.IPNet
+	leases   map[string]string
+	lock     sync.Mutex
+	next     *big.Int
+	released []net.IP
 }
 
 func NewIPPool(base *net.IPNet) *IPPool {
@@ -49,6 +50,12 @@ func (p *IPPool) GetOrAssign(mac string) (net.IP, error) {
 			return net.ParseIP(ip), nil
 		}
 	}
+	if len(p.released) > 0 {
+		ip := p.released[0]
+		p.released = p.released[1:]
+		p.leases[ip.String()] = mac
+		return ip, nil
+	}
 	for {
 		ipBytes := p.next.Bytes()
 		if len(ipBytes) < len(p.base.IP) {
@@ -56,6 +63,7 @@ func (p *IPPool) GetOrAssign(mac string) (net.IP, error) {
 			copy(padded[len(p.base.IP)-len(ipBytes):], ipBytes)
 			ipBytes = padded
 		}
+		ipBytes = ipBytes[len(ipBytes)-len(p.base.IP):]
 
 		candidate := net.IP(ipBytes)
 		if !p.base.Contains(candidate) {
@@ -91,5 +99,6 @@ func (p *IPPool) Release(given string) {
 	}
 	if found != "" {
 		delete(p.leases, found)
+		p.released = append(p.released, net.ParseIP(found))
 	}
 }

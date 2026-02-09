@@ -95,16 +95,18 @@ func (h *dnsHandler) addLocalAnswers(m *dns.Msg, q dns.Question) bool {
 			if len(m.Answer) > 0 || nameExists {
 				return true
 			}
-			if q.Qtype == dns.TypeA && !zone.DefaultIP.Equal(net.IP("")) {
-				m.Answer = append(m.Answer, &dns.A{
-					Hdr: dns.RR_Header{
-						Name:   q.Name,
-						Rrtype: dns.TypeA,
-						Class:  dns.ClassINET,
-						Ttl:    0,
-					},
-					A: zone.DefaultIP,
-				})
+			if !zone.DefaultIP.Equal(net.IP("")) {
+				if q.Qtype == dns.TypeA {
+					m.Answer = append(m.Answer, &dns.A{
+						Hdr: dns.RR_Header{
+							Name:   q.Name,
+							Rrtype: dns.TypeA,
+							Class:  dns.ClassINET,
+							Ttl:    0,
+						},
+						A: zone.DefaultIP,
+					})
+				}
 				return true
 			}
 			m.Rcode = dns.RcodeNameError
