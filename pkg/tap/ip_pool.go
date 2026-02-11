@@ -3,8 +3,8 @@ package tap
 import (
 	"errors"
 	"maps"
-	"math/big"
 	"net"
+	"net/netip"
 	"sync"
 )
 
@@ -12,14 +12,16 @@ type IPPool struct {
 	base     *net.IPNet
 	leases   map[string]string
 	lock     sync.Mutex
-	next     *big.Int
+	next     netip.Addr
 	released []net.IP
 }
 
 func NewIPPool(base *net.IPNet) *IPPool {
-	start := big.NewInt(0)
-	start.SetBytes(base.IP.To16())
-	start.Add(start, big.NewInt(1))
+	start, ok := netip.AddrFromSlice(base.IP)
+	if !ok {
+		// never
+		panic("input is incorrect")
+	}
 
 	return &IPPool{
 		base:   base,
@@ -51,26 +53,19 @@ func (p *IPPool) GetOrAssign(mac string) (net.IP, error) {
 		}
 	}
 	if len(p.released) > 0 {
-		ip := p.released[0]
-		p.released = p.released[1:]
+		ip := p.released[len(p.released)-1]
+		p.released = p.released[:len(p.released)-1]
 		p.leases[ip.String()] = mac
 		return ip, nil
 	}
 	for {
-		ipBytes := p.next.Bytes()
-		if len(ipBytes) < len(p.base.IP) {
-			padded := make([]byte, len(p.base.IP))
-			copy(padded[len(p.base.IP)-len(ipBytes):], ipBytes)
-			ipBytes = padded
-		}
-		ipBytes = ipBytes[len(ipBytes)-len(p.base.IP):]
+		ip := p.next.Next()
+		p.next = ip
+		var candidate net.IP = ip.AsSlice()
 
-		candidate := net.IP(ipBytes)
 		if !p.base.Contains(candidate) {
 			return nil, errors.New("cannot find available IP")
 		}
-
-		p.next.Add(p.next, big.NewInt(1))
 
 		if _, ok := p.leases[candidate.String()]; !ok {
 			p.leases[candidate.String()] = mac

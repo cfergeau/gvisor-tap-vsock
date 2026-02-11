@@ -56,12 +56,11 @@ func raBuf(
 		return nil, err
 	}
 
-	payloadLength := icmpSize
 	iph := header.IPv6(make([]byte, header.IPv6MinimumSize))
 	iph.Encode(&header.IPv6Fields{
 		TrafficClass:      0,
 		FlowLabel:         0,
-		PayloadLength:     uint16(payloadLength),
+		PayloadLength:     uint16(icmpSize), //nolint:gosec
 		TransportProtocol: icmp.ProtocolNumber6,
 		HopLimit:          header.NDPHopLimit,
 		SrcAddr:           ip,

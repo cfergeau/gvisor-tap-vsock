@@ -132,7 +132,7 @@ func TestIsIPv6RouterSolicitation(t *testing.T) {
 	// Checksum would be set properly in real packet
 
 	// Combine all headers
-	packet := append(eth, ipv6Hdr...)
+	packet := append(eth, ipv6Hdr...) // nolint:gocritic
 	packet = append(packet, icmpHdr...)
 
 	// Parse and verify
@@ -179,7 +179,7 @@ func TestIsIPv6NeighborAdvertisement(t *testing.T) {
 	icmpv6.SetCode(0)
 
 	// Combine all headers
-	packet := append(eth, ipv6Hdr...)
+	packet := append(eth, ipv6Hdr...) // nolint:gocritic
 	packet = append(packet, icmpHdr...)
 
 	// Parse and verify

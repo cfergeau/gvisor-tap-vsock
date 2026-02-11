@@ -324,7 +324,7 @@ func (e *Switch) rxBuf(_ context.Context, id int, buf []byte) {
 							ndpOpts = append(
 								ndpOpts,
 								makePrefixInfo(
-									uint8(prefixLen),
+									uint8(prefixLen), //nolint:gosec
 									ipnet.IP.To16(),
 									86400,
 									14400,
