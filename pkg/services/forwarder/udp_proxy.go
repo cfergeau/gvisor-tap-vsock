@@ -55,6 +55,8 @@ type UDPProxy struct {
 	dialer         func() (net.Conn, error)
 	connTrackTable connTrackMap
 	connTrackLock  sync.Mutex
+
+	nextLog time.Time
 }
 
 // NewUDPProxy creates a new UDPProxy.
@@ -63,10 +65,26 @@ func NewUDPProxy(listener udpConn, dialer func() (net.Conn, error)) (*UDPProxy, 
 		listener:       listener,
 		connTrackTable: make(connTrackMap),
 		dialer:         dialer,
+		nextLog:        time.Now(),
 	}, nil
 }
 
 func (proxy *UDPProxy) replyLoop(proxyConn net.Conn, clientAddr net.Addr, clientKey *connTrackKey) {
+	enableLogs := false
+	loops := 0
+	infoLog := func(format string, args ...interface{}) {
+		if time.Now().After(proxy.nextLog) {
+			log.Infof("looped %d times in 300ms", loops)
+			loops = 0
+			enableLogs = true
+			proxy.nextLog = time.Now().Add(300 * time.Millisecond)
+		}
+		if !enableLogs {
+			return
+		}
+		log.Infof(format, args...)
+	}
+
 	defer func() {
 		proxy.connTrackLock.Lock()
 		delete(proxy.connTrackTable, *clientKey)
@@ -76,11 +94,17 @@ func (proxy *UDPProxy) replyLoop(proxyConn net.Conn, clientAddr net.Addr, client
 
 	readBuf := make([]byte, UDPBufSize)
 	for {
+		enableLogs = false
+		loops++
+		infoLog("replyLoop clientAddr: %s proxyConn.LocalAddr: %v proxyConn.RemoteAddr: %v", clientAddr.String(), proxyConn.LocalAddr(), proxyConn.RemoteAddr())
 		_ = proxyConn.SetReadDeadline(time.Now().Add(UDPConnTrackTimeout))
 	again:
+		infoLog("before read clientAddr: %s proxyConn.LocalAddr: %v proxyConn.RemoteAddr: %v", clientAddr.String(), proxyConn.LocalAddr(), proxyConn.RemoteAddr())
 		read, err := proxyConn.Read(readBuf)
 		if err != nil {
+			log.Infof("error reading: %v", err)
 			if err, ok := err.(*net.OpError); ok && err.Err == syscall.ECONNREFUSED {
+				log.Infof("replyLoop: ECONNREFUSED, retry")
 				// This will happen if the last write failed
 				// (e.g: nothing is actually listening on the
 				// proxied port on the container), ignore it
@@ -90,11 +114,14 @@ func (proxy *UDPProxy) replyLoop(proxyConn net.Conn, clientAddr net.Addr, client
 			}
 			return
 		}
+		infoLog("before WriteTo(%d) clientAddr: %s listener.LocalAddr: %v listener.RemoteAddr: %v", read, clientAddr.String(), proxy.listener.LocalAddr(), proxy.listener.RemoteAddr())
 		for i := 0; i != read; {
 			written, err := proxy.listener.WriteTo(readBuf[i:read], clientAddr)
 			if err != nil {
+				log.Infof("error writing: %s", err)
 				return
 			}
+			infoLog("wrote %d bytes", written)
 			i += written
 		}
 	}
@@ -121,7 +148,7 @@ func (proxy *UDPProxy) Run() {
 		if !hit {
 			proxyConn, err = proxy.dialer()
 			if err != nil {
-				log.Errorf("Can't proxy a datagram to udp: %s\n", err)
+				log.Errorf("Can't proxy a datagram to udp (dial): %s\n", err)
 				proxy.connTrackLock.Unlock()
 				continue
 			}
@@ -133,7 +160,7 @@ func (proxy *UDPProxy) Run() {
 			_ = proxyConn.SetReadDeadline(time.Now().Add(UDPConnTrackTimeout))
 			written, err := proxyConn.Write(readBuf[i:read])
 			if err != nil {
-				log.Errorf("Can't proxy a datagram to udp: %s\n", err)
+				log.Errorf("Can't proxy a datagram to udp (write): %s\n", err)
 				break
 			}
 			i += written
@@ -166,11 +193,21 @@ type udpConn interface {
 	ReadFrom(b []byte) (int, net.Addr, error)
 	WriteTo(b []byte, addr net.Addr) (int, error)
 	SetReadDeadline(t time.Time) error
+	LocalAddr() net.Addr
+	RemoteAddr() net.Addr
 	io.Closer
 }
 
 type autoStoppingListener struct {
 	underlying udpConn
+}
+
+func (l *autoStoppingListener) LocalAddr() net.Addr {
+	return l.underlying.LocalAddr()
+}
+
+func (l *autoStoppingListener) RemoteAddr() net.Addr {
+	return l.underlying.RemoteAddr()
 }
 
 func (l *autoStoppingListener) ReadFrom(b []byte) (int, net.Addr, error) {
