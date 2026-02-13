@@ -71,8 +71,11 @@ func NewUDPProxy(listener udpConn, dialer func() (net.Conn, error)) (*UDPProxy, 
 
 func (proxy *UDPProxy) replyLoop(proxyConn net.Conn, clientAddr net.Addr, clientKey *connTrackKey) {
 	enableLogs := false
+	loops := 0
 	infoLog := func(format string, args ...interface{}) {
 		if time.Now().After(proxy.nextLog) {
+			log.Infof("looped %d times in 300ms", loops)
+			loops = 0
 			enableLogs = true
 			proxy.nextLog = time.Now().Add(300 * time.Millisecond)
 		}
@@ -92,6 +95,7 @@ func (proxy *UDPProxy) replyLoop(proxyConn net.Conn, clientAddr net.Addr, client
 	readBuf := make([]byte, UDPBufSize)
 	for {
 		enableLogs = false
+		loops++
 		infoLog("replyLoop clientAddr: %s proxyConn.LocalAddr: %v proxyConn.RemoteAddr: %v", clientAddr.String(), proxyConn.LocalAddr(), proxyConn.RemoteAddr())
 		_ = proxyConn.SetReadDeadline(time.Now().Add(UDPConnTrackTimeout))
 	again:
