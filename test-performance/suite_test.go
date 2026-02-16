@@ -44,13 +44,12 @@ var (
 		NetworkSocket:  "/tmp/vfkit.sock",
 		ServicesSocket: "/tmp/gvproxy-api-vfkit.sock",
 		EFIStore:       "efi-variable-store",
-	}
-
-	sshConfig = e2e_utils.SSHConfig{
-		IdentityPath:   filepath.Join(tmpDir, "id_test"),
-		PublicKeyPath:  filepath.Join(tmpDir, "id_test.pub"),
-		Port:           2223,
-		RemoteUsername: "test",
+		SSHConfig: &e2e_utils.SSHConfig{
+			IdentityPath:   filepath.Join(tmpDir, "id_test"),
+			PublicKeyPath:  filepath.Join(tmpDir, "id_test.pub"),
+			Port:           2223,
+			RemoteUsername: "test",
+		},
 	}
 )
 
@@ -64,7 +63,7 @@ var _ = ginkgo.BeforeSuite(func() {
 	gomega.Expect(version >= vfkitVersionNeeded).Should(gomega.BeTrue())
 
 	// check if ssh port is free
-	gomega.Expect(e2e_utils.IsPortAvailable(sshConfig.Port)).Should(gomega.BeTrue())
+	gomega.Expect(e2e_utils.IsPortAvailable(vmConfig.SSHConfig.Port)).Should(gomega.BeTrue())
 
 	// download disk image
 	gomega.Expect(os.MkdirAll(filepath.Join(tmpDir, "disks"), os.ModePerm)).Should(gomega.Succeed())
@@ -87,27 +86,19 @@ var _ = ginkgo.BeforeSuite(func() {
 	vmConfig.DiskImage = fcosImage
 
 	// create ssh keys
-	publicKey, err := e2e_utils.CreateSSHKeys(sshConfig.PublicKeyPath, sshConfig.IdentityPath)
+	publicKey, err := e2e_utils.CreateSSHKeys(vmConfig.SSHConfig.PublicKeyPath, vmConfig.SSHConfig.IdentityPath)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	// create ignition file
-	err = e2e_utils.CreateIgnition(vmConfig.IgnitionFile, publicKey, sshConfig.RemoteUsername, ignitionPasswordHash)
+	err = e2e_utils.CreateIgnition(vmConfig.IgnitionFile, publicKey, vmConfig.SSHConfig.RemoteUsername, ignitionPasswordHash)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	// VM/gvproxy configuration / start
-	host := e2e_utils.VfkitGvproxyCmd(&vmConfig, &sshConfig)
-
-	client, err := e2e_utils.VfkitCmd(&vmConfig)
+	vm, err := e2e_utils.NewVirtualMachine(e2e_utils.VFKit, &vmConfig)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-
-	vm, err = e2e_utils.NewVirtualMachine(client, host)
-	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-	vm.SetSSHConfig(&sshConfig)
-	vm.SetGvproxySockets(vmConfig.ServicesSocket, vmConfig.NetworkSocket)
 
 	err = vm.Start()
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-	log.Infof("ssh config: %+v", sshConfig)
 })
 
 var _ = ginkgo.AfterSuite(func() {
