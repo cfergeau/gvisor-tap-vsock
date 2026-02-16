@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	gvproxyclient "github.com/containers/gvisor-tap-vsock/pkg/client"
 	e2e "github.com/containers/gvisor-tap-vsock/test"
 	e2e_utils "github.com/containers/gvisor-tap-vsock/test-utils"
 
@@ -19,8 +20,8 @@ import (
 
 var _ = ginkgo.Describe("test performance with vfkit", func() {
 	PerfTest(e2e.BasicTestProps{
-		SSHExec: func(args ...string) ([]byte, error) { return vm.Run(args...) },
-		Sock:    vm.GvproxyAPISocket(),
+		SSHExec:          func(args ...string) ([]byte, error) { return vm.Run(args...) },
+		GvproxyAPIClient: func() *gvproxyclient.Client { return vm.GvproxyAPIClient() },
 	})
 })
 
