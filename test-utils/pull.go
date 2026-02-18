@@ -87,16 +87,8 @@ func Decompress(localPath string) (string, error) {
 // depends on xz: not pre-installed on mac, so it becomes a brew dependency
 func decompressXZ(src string, output io.Writer) error {
 	cmd := exec.Command("xzcat", "-T0", "-k", src)
-	stdOut, err := cmd.StdoutPipe()
-	if err != nil {
-		return err
-	}
+	cmd.Stdout = output
 	cmd.Stderr = os.Stderr
-	go func() {
-		if _, err := io.Copy(output, stdOut); err != nil {
-			logrus.Error(err)
-		}
-	}()
 	return cmd.Run()
 }
 
