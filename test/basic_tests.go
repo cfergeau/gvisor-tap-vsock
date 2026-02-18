@@ -1,7 +1,9 @@
 package e2e
 
 import (
+	"context"
 	"net"
+	"net/http"
 
 	gvproxyclient "github.com/containers/gvisor-tap-vsock/pkg/client"
 
@@ -11,8 +13,8 @@ import (
 )
 
 type BasicTestProps struct {
-	SSHExec          func(cmd ...string) ([]byte, error)
-	GvproxyAPIClient func() *gvproxyclient.Client
+	SSHExec func(cmd ...string) ([]byte, error)
+	Sock    string
 }
 
 func BasicConnectivityTests(props BasicTestProps) {
@@ -52,7 +54,13 @@ func BasicConnectivityTests(props BasicTestProps) {
 
 func BasicDHCPTests(props BasicTestProps) {
 	ginkgo.It("should return DHCP leases", func() {
-		client := props.GvproxyAPIClient()
+		client := gvproxyclient.New(&http.Client{
+			Transport: &http.Transport{
+				DialContext: func(_ context.Context, _, _ string) (net.Conn, error) {
+					return net.Dial("unix", props.Sock)
+				},
+			},
+		}, "http://base")
 		leases, err := client.ListDHCPLeases()
 		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 		gomega.Expect(leases).Should(gomega.HaveKeyWithValue("192.168.127.1", "5a:94:ef:e4:0c:dd"))
@@ -108,7 +116,13 @@ func BasicDNSTests(props BasicTestProps) {
 	})
 
 	ginkgo.It("should resolve dynamically added dns entry test.dynamic.internal", func() {
-		client := props.GvproxyAPIClient()
+		client := gvproxyclient.New(&http.Client{
+			Transport: &http.Transport{
+				DialContext: func(_ context.Context, _, _ string) (net.Conn, error) {
+					return net.Dial("unix", props.Sock)
+				},
+			},
+		}, "http://base")
 		err := client.AddDNS(&types.Zone{
 			Name: "dynamic.internal.",
 			Records: []types.Record{
@@ -127,7 +141,13 @@ func BasicDNSTests(props BasicTestProps) {
 	})
 
 	ginkgo.It("should resolve recently added dns entry test.dynamic.internal", func() {
-		client := props.GvproxyAPIClient()
+		client := gvproxyclient.New(&http.Client{
+			Transport: &http.Transport{
+				DialContext: func(_ context.Context, _, _ string) (net.Conn, error) {
+					return net.Dial("unix", props.Sock)
+				},
+			},
+		}, "http://base")
 		err := client.AddDNS(&types.Zone{
 			Name: "dynamic.internal.",
 			Records: []types.Record{
@@ -157,7 +177,13 @@ func BasicDNSTests(props BasicTestProps) {
 	})
 
 	ginkgo.It("should retain order of existing zone", func() {
-		client := props.GvproxyAPIClient()
+		client := gvproxyclient.New(&http.Client{
+			Transport: &http.Transport{
+				DialContext: func(_ context.Context, _, _ string) (net.Conn, error) {
+					return net.Dial("unix", props.Sock)
+				},
+			},
+		}, "http://base")
 		_ = client.AddDNS(&types.Zone{
 			Name:      "dynamic.testing.",
 			DefaultIP: net.ParseIP("192.168.127.2"),

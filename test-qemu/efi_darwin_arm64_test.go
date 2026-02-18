@@ -1,4 +1,4 @@
-package e2eutils
+package e2eqemu
 
 import (
 	"fmt"

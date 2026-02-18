@@ -13,19 +13,10 @@ import (
 	"path/filepath"
 	"strings"
 
-	gvproxyclient "github.com/containers/gvisor-tap-vsock/pkg/client"
 	e2e "github.com/containers/gvisor-tap-vsock/test"
 	"github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
 )
-
-func sshExec(cmd ...string) ([]byte, error) {
-	return vm.Run(cmd...)
-}
-
-func gvproxyAPIClient() *gvproxyclient.Client {
-	return vm.GvproxyAPIClient()
-}
 
 var _ = ginkgo.Describe("connectivity with vfkit", func() {
 	e2e.BasicConnectivityTests(e2e.BasicTestProps{
@@ -35,20 +26,20 @@ var _ = ginkgo.Describe("connectivity with vfkit", func() {
 
 var _ = ginkgo.Describe("dns with vfkit", func() {
 	e2e.BasicDNSTests(e2e.BasicTestProps{
-		SSHExec:          sshExec,
-		GvproxyAPIClient: gvproxyAPIClient,
+		SSHExec: sshExec,
+		Sock:    sock,
 	})
 })
 
 var _ = ginkgo.Describe("dhcp with vfkit", func() {
 	e2e.BasicDHCPTests(e2e.BasicTestProps{
-		SSHExec:          sshExec,
-		GvproxyAPIClient: gvproxyAPIClient,
+		SSHExec: sshExec,
+		Sock:    sock,
 	})
 })
 
 var _ = ginkgo.Describe("upload and download with vfkit", func() {
-	tmpDir, err := os.MkdirTemp(tmpDir, "cache")
+	tmpDir, err := os.MkdirTemp("", "vfkit")
 	gomega.Expect(err).NotTo(gomega.HaveOccurred())
 
 	sumMap := make(map[string]string)
@@ -72,10 +63,10 @@ var _ = ginkgo.Describe("upload and download with vfkit", func() {
 			srcPath := file.Name()
 			dstPath := filepath.Join(dstDir, path.Base(srcPath))
 
-			err = vm.CopyToVM(srcPath, dstDir)
+			err = scpToVM(srcPath, dstDir)
 			gomega.Expect(err).NotTo(gomega.HaveOccurred())
 
-			out, err := vm.Run(fmt.Sprintf("sha256sum %s | awk '{print $1}'", dstPath))
+			out, err := sshExec(fmt.Sprintf("sha256sum %s | awk '{print $1}'", dstPath))
 			gomega.Expect(err).NotTo(gomega.HaveOccurred())
 
 			localSum := hex.EncodeToString(hasher.Sum(nil))
@@ -90,7 +81,7 @@ var _ = ginkgo.Describe("upload and download with vfkit", func() {
 		dlTmpDir, err := os.MkdirTemp("", "vfkit-dl")
 		gomega.Expect(err).NotTo(gomega.HaveOccurred())
 		for filename := range sumMap {
-			err = vm.CopyFromVM(filename, dlTmpDir)
+			err = scpFromVM(filename, dlTmpDir)
 			gomega.Expect(err).NotTo(gomega.HaveOccurred())
 		}
 
