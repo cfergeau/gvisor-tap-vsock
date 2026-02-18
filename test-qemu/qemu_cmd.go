@@ -1,10 +1,12 @@
-package e2eutils
+package e2eqemu
 
 import (
 	"fmt"
 	"os/exec"
 	"runtime"
 	"strconv"
+
+	e2e_utils "github.com/containers/gvisor-tap-vsock/test-utils"
 )
 
 type qemuCmd struct {
@@ -152,7 +154,7 @@ func (cmd *qemuCmd) Cmd(qemuPath string) (*exec.Cmd, error) {
 }
 
 func qemuExecutable() string {
-	qemuBinaries := []string{"qemu-kvm", fmt.Sprintf("qemu-system-%s", CoreosArch())}
+	qemuBinaries := []string{"qemu-kvm", fmt.Sprintf("qemu-system-%s", e2e_utils.CoreosArch())}
 	for _, binary := range qemuBinaries {
 		path, err := exec.LookPath(binary)
 		if err == nil && path != "" {
