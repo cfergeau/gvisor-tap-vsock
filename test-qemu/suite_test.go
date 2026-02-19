@@ -34,6 +34,8 @@ const (
 
 	// #nosec "test" (for manual usage)
 	ignitionPasswordHash = "$y$j9T$TqJWt3/mKJbH0sYi6B/LD1$QjVRuUgntjTHjAdAkqhkr4F73m.Be4jBXdAaKw98sPC"
+
+	vmKind = e2e_utils.QEMU
 )
 
 var (
@@ -78,11 +80,8 @@ func gvproxyCmd(apiSocket string) *exec.Cmd {
 }
 
 var _ = ginkgo.BeforeSuite(func() {
-	gomega.Expect(os.MkdirAll(filepath.Join(tmpDir, "disks"), os.ModePerm)).Should(gomega.Succeed())
-
-	downloader, err := e2e_utils.NewFcosDownloader(filepath.Join(tmpDir, "disks"))
-	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-	qemuImage, err := downloader.DownloadImage("qemu", "qcow2.xz")
+	gomega.Expect(os.MkdirAll(filepath.Join("cache", "disks"), os.ModePerm)).Should(gomega.Succeed())
+	fcosImage, err := e2e_utils.FetchDiskImage(vmKind)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	publicKey, err := e2e_utils.CreateSSHKeys(publicKeyFile, privateKeyFile)
@@ -110,7 +109,7 @@ var _ = ginkgo.BeforeSuite(func() {
 
 	qemuCmd := newQemuCmd()
 	qemuCmd.SetIgnition(ignFile)
-	qemuCmd.SetDrive(qemuImage, true)
+	qemuCmd.SetDrive(fcosImage, true)
 	qemuCmd.SetNetdevSocket(net.JoinHostPort("127.0.0.1", strconv.Itoa(qemuPort)), "5a:94:ef:e4:0c:ee")
 	qemuCmd.SetSerial(qconLog)
 	client, err = qemuCmd.Cmd(qemuExecutable())
