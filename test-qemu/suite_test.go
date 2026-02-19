@@ -25,7 +25,6 @@ func TestSuite(t *testing.T) {
 }
 
 const (
-	sock           = "/tmp/gvproxy-api.sock"
 	qemuPort       = 5555
 	sshPort        = 2222
 	ignitionUser   = "test"
@@ -61,9 +60,9 @@ func init() {
 
 }
 
-func gvproxyCmd() *exec.Cmd {
+func gvproxyCmd(apiSocket string) *exec.Cmd {
 	cmd := types.NewGvproxyCommand()
-	cmd.AddEndpoint(fmt.Sprintf("unix://%s", sock))
+	cmd.AddEndpoint(fmt.Sprintf("unix://%s", apiSocket))
 	cmd.AddQemuSocket("tcp://" + net.JoinHostPort("127.0.0.1", strconv.Itoa(qemuPort)))
 	cmd.AddForwardSock(forwardSock)
 	cmd.AddForwardDest(podmanSock)
@@ -92,13 +91,21 @@ var _ = ginkgo.BeforeSuite(func() {
 	err = e2e_utils.CreateIgnition(ignFile, publicKey, ignitionUser, ignitionPasswordHash)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	_ = os.Remove(sock)
+	_ = os.Remove(vm.GvproxyAPISocket())
 
-	host = gvproxyCmd()
+	vm, err = e2e_utils.NewVirtualMachine()
+	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+	vm.SetSSHConfig(&e2e_utils.SSHConfig{
+		IdentityPath:   privateKeyFile,
+		Port:           sshPort,
+		RemoteUsername: ignitionUser,
+	})
+
+	host = gvproxyCmd(vm.GvproxyAPISocket())
 	host.Stderr = os.Stderr
 	host.Stdout = os.Stdout
 	gomega.Expect(host.Start()).Should(gomega.Succeed())
-	err = e2e_utils.WaitGvproxy(host, sock)
+	err = e2e_utils.WaitGvproxy(host, vm.GvproxyAPISocket())
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	qemuCmd := newQemuCmd()
@@ -111,13 +118,6 @@ var _ = ginkgo.BeforeSuite(func() {
 	client.Stderr = os.Stderr
 	client.Stdout = os.Stdout
 	gomega.Expect(client.Start()).Should(gomega.Succeed())
-	vm, err = e2e_utils.NewVirtualMachine()
-	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-	vm.SetSSHConfig(&e2e_utils.SSHConfig{
-		IdentityPath:   privateKeyFile,
-		Port:           sshPort,
-		RemoteUsername: ignitionUser,
-	})
 	err = e2e_utils.WaitSSH(client, sshExec)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
