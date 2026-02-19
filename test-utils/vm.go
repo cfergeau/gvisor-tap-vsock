@@ -1,12 +1,21 @@
 package e2eutils
 
 import (
+	"context"
 	"fmt"
+	"net"
+	"net/http"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
+
+	gvproxyclient "github.com/containers/gvisor-tap-vsock/pkg/client"
+	g "github.com/onsi/ginkgo/v2"
 )
+
+var GvproxyAPISocket string
 
 // SSHConfig contains remote access information for SSH
 type SSHConfig struct {
@@ -23,7 +32,23 @@ type VirtualMachine struct {
 }
 
 func NewVirtualMachine() (*VirtualMachine, error) {
+	// cannot be initialized early as `GinkgoT().TempDir()` cannot be called outside of specific locations
+	GvproxyAPISocket = filepath.Join(g.GinkgoT().TempDir(), "api.sock")
 	return &VirtualMachine{}, nil
+}
+
+func (vm *VirtualMachine) GvproxyAPISocket() string {
+	return GvproxyAPISocket
+}
+
+func (vm *VirtualMachine) GvproxyAPIClient() *gvproxyclient.Client {
+	return gvproxyclient.New(&http.Client{
+		Transport: &http.Transport{
+			DialContext: func(_ context.Context, _, _ string) (net.Conn, error) {
+				return net.Dial("unix", vm.GvproxyAPISocket())
+			},
+		},
+	}, "http://base")
 }
 
 func (vm *VirtualMachine) SetSSHConfig(config *SSHConfig) {
