@@ -40,25 +40,18 @@ const (
 )
 
 var (
-	tmpDir         string
-	binDir         string
-	vm             *e2e_utils.VirtualMachine
-	host           *exec.Cmd
-	client         *exec.Cmd
-	privateKeyFile string
-	publicKeyFile  string
-	ignFile        string
-	cmdDir         string
+	tmpDir string
+	binDir string
+	vm     *e2e_utils.VirtualMachine
+	host   *exec.Cmd
+	client *exec.Cmd
+	cmdDir string
 )
 
 var debugEnabled = flag.Bool("debug", false, "enable debugger")
 
 func init() {
-	flag.StringVar(&tmpDir, "tmpDir", "../tmp", "temporary working directory")
 	flag.StringVar(&binDir, "bin", "../bin", "directory with compiled binaries")
-	privateKeyFile = filepath.Join(tmpDir, "id_test_vfkit")
-	publicKeyFile = privateKeyFile + ".pub"
-	ignFile = filepath.Join(tmpDir, "test.ign")
 	cmdDir = "../cmd"
 }
 
@@ -71,7 +64,7 @@ func gvproxyCmd(apiSocket string) *exec.Cmd {
 	return cmd.Cmd(filepath.Join(binDir, "gvproxy"))
 }
 
-func vfkitCmd(diskImage string) (*exec.Cmd, error) {
+func vfkitCmd(diskImage, ignFile string) (*exec.Cmd, error) {
 	bootloader := vfkit.NewEFIBootloader(efiStore, true)
 	vm := vfkit.NewVirtualMachine(2, 2048, bootloader)
 	disk, err := vfkit.VirtioBlkNew(diskImage)
@@ -100,6 +93,7 @@ func vfkitCmd(diskImage string) (*exec.Cmd, error) {
 }
 
 var _ = ginkgo.BeforeSuite(func() {
+	tmpDir = ginkgo.GinkgoT().TempDir()
 	// clear the environment before running the tests. It may happen the tests were abruptly stopped earlier leaving a dirty env
 	cleanup()
 
@@ -116,9 +110,12 @@ var _ = ginkgo.BeforeSuite(func() {
 	fcosImage, err := e2e_utils.FetchDiskImage(e2e_utils.VFKit)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
+	privateKeyFile := filepath.Join(tmpDir, "id_test_vfkit")
+	publicKeyFile := privateKeyFile + ".pub"
 	publicKey, err := e2e_utils.CreateSSHKeys(publicKeyFile, privateKeyFile)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
+	ignFile := filepath.Join(tmpDir, "test.ign")
 	err = e2e_utils.CreateIgnition(ignFile, publicKey, ignitionUser, ignitionPasswordHash)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
@@ -145,7 +142,7 @@ var _ = ginkgo.BeforeSuite(func() {
 	err = e2e_utils.WaitGvproxy(host, vm.GvproxyAPISocket(), vfkitSock)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	client, err := vfkitCmd(fcosImage)
+	client, err := vfkitCmd(fcosImage, ignFile)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 	client.Stderr = os.Stderr
 	client.Stdout = os.Stdout
