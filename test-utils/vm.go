@@ -17,6 +17,35 @@ import (
 
 var GvproxyAPISocket string
 
+type VMKind int
+
+const (
+	QEMU VMKind = iota
+	VFKit
+)
+
+func (k VMKind) String() string {
+	switch k {
+	case QEMU:
+		return "qemu"
+	case VFKit:
+		return "applehv"
+	default:
+		return ""
+	}
+}
+
+func (k VMKind) FcosFormatType() string {
+	switch k {
+	case QEMU:
+		return "qcow2.xz"
+	case VFKit:
+		return "raw.gz"
+	default:
+		return ""
+	}
+}
+
 // SSHConfig contains remote access information for SSH
 type SSHConfig struct {
 	// IdentityPath is the fq path to the ssh priv key
@@ -49,6 +78,24 @@ func (vm *VirtualMachine) GvproxyAPIClient() *gvproxyclient.Client {
 			},
 		},
 	}, "http://base")
+}
+
+func FetchDiskImage(vmKind VMKind) (string, error) {
+	cachePath := filepath.Join("cache", "disks")
+	if err := os.MkdirAll(cachePath, os.ModePerm); err != nil {
+		return "", err
+	}
+
+	downloader, err := NewFcosDownloader(cachePath)
+	if err != nil {
+		return "", err
+	}
+	image, err := downloader.DownloadImage(vmKind.String(), vmKind.FcosFormatType())
+	if err != nil {
+		return "", err
+	}
+
+	return image, nil
 }
 
 func (vm *VirtualMachine) SetSSHConfig(config *SSHConfig) {

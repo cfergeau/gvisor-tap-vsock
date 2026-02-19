@@ -113,9 +113,7 @@ var _ = ginkgo.BeforeSuite(func() {
 
 	gomega.Expect(os.MkdirAll(filepath.Join(tmpDir, "disks"), os.ModePerm)).Should(gomega.Succeed())
 
-	downloader, err := e2e_utils.NewFcosDownloader(filepath.Join(tmpDir, "disks"))
-	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-	fcosImage, err := downloader.DownloadImage("applehv", "raw.gz")
+	fcosImage, err := e2e_utils.FetchDiskImage(e2e_utils.VFKit)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	publicKey, err := e2e_utils.CreateSSHKeys(publicKeyFile, privateKeyFile)
