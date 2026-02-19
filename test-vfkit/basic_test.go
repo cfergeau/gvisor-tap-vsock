@@ -13,10 +13,19 @@ import (
 	"path/filepath"
 	"strings"
 
+	gvproxyclient "github.com/containers/gvisor-tap-vsock/pkg/client"
 	e2e "github.com/containers/gvisor-tap-vsock/test"
 	"github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
 )
+
+func sshExec(cmd ...string) ([]byte, error) {
+	return vm.Run(cmd...)
+}
+
+func gvproxyAPIClient() *gvproxyclient.Client {
+	return vm.GvproxyAPIClient()
+}
 
 var _ = ginkgo.Describe("connectivity with vfkit", func() {
 	e2e.BasicConnectivityTests(e2e.BasicTestProps{
@@ -26,15 +35,15 @@ var _ = ginkgo.Describe("connectivity with vfkit", func() {
 
 var _ = ginkgo.Describe("dns with vfkit", func() {
 	e2e.BasicDNSTests(e2e.BasicTestProps{
-		SSHExec: sshExec,
-		Sock:    sock,
+		SSHExec:          sshExec,
+		GvproxyAPIClient: gvproxyAPIClient,
 	})
 })
 
 var _ = ginkgo.Describe("dhcp with vfkit", func() {
 	e2e.BasicDHCPTests(e2e.BasicTestProps{
-		SSHExec: sshExec,
-		Sock:    sock,
+		SSHExec:          sshExec,
+		GvproxyAPIClient: gvproxyAPIClient,
 	})
 })
 
