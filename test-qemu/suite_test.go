@@ -2,11 +2,8 @@ package e2eqemu
 
 import (
 	"flag"
-	"net"
 	"os"
-	"os/exec"
 	"path/filepath"
-	"strconv"
 	"testing"
 	"time"
 
@@ -14,7 +11,6 @@ import (
 
 	"github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
-	log "github.com/sirupsen/logrus"
 )
 
 func TestSuite(t *testing.T) {
@@ -23,10 +19,8 @@ func TestSuite(t *testing.T) {
 }
 
 const (
-	qemuPort       = 5555
 	sshPort        = 2222
 	ignitionUser   = "test"
-	qconLog        = "qcon.log"
 	podmanSock     = "/run/user/1001/podman/podman.sock"
 	podmanRootSock = "/run/podman/podman.sock"
 
@@ -39,7 +33,6 @@ const (
 var (
 	tmpDir          string
 	binDir          string
-	client          *exec.Cmd
 	privateKeyFile  string
 	forwardSock     string
 	forwardRootSock string
@@ -48,7 +41,6 @@ var (
 
 func init() {
 	flag.StringVar(&binDir, "bin", "../bin", "directory with compiled binaries")
-
 }
 
 func addSSHForwards(vm *e2e_utils.VirtualMachine) {
@@ -83,6 +75,8 @@ var _ = ginkgo.BeforeSuite(func() {
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	vmConfig := e2e_utils.VirtualMachineConfig{
+		DiskImage:    fcosImage,
+		IgnitionFile: ignFile,
 		SSHConfig: &e2e_utils.SSHConfig{
 			IdentityPath:   privateKeyFile,
 			Port:           sshPort,
@@ -90,24 +84,11 @@ var _ = ginkgo.BeforeSuite(func() {
 		},
 	}
 
-	vm, err = e2e_utils.NewVirtualMachine(e2e_utils.QEMU, &vmConfig)
+	vm, err = e2e_utils.NewVirtualMachine(vmKind, &vmConfig)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 	addSSHForwards(vm)
 
 	err = vm.Start()
-	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-
-	qemuCmd := newQemuCmd()
-	qemuCmd.SetIgnition(ignFile)
-	qemuCmd.SetDrive(fcosImage, true)
-	qemuCmd.SetNetdevSocket(net.JoinHostPort("127.0.0.1", strconv.Itoa(qemuPort)), "5a:94:ef:e4:0c:ee")
-	qemuCmd.SetSerial(qconLog)
-	client, err = qemuCmd.Cmd(qemuExecutable())
-	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-	client.Stderr = os.Stderr
-	client.Stdout = os.Stdout
-	gomega.Expect(client.Start()).Should(gomega.Succeed())
-	err = e2e_utils.WaitSSH(client, sshExec)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	err = vm.CopyToVM(filepath.Join(binDir, "test-companion"), "/tmp/test-companion")
@@ -122,10 +103,4 @@ var _ = ginkgo.BeforeSuite(func() {
 var _ = ginkgo.AfterSuite(func() {
 	err := vm.Kill()
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-
-	if client != nil {
-		if err := client.Process.Kill(); err != nil {
-			log.Error(err)
-		}
-	}
 })

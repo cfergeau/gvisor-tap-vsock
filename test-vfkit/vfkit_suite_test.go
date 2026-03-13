@@ -3,14 +3,11 @@
 package e2evfkit
 
 import (
-	"flag"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"testing"
 
 	e2e_utils "github.com/containers/gvisor-tap-vsock/test-utils"
-	vfkit "github.com/crc-org/vfkit/pkg/config"
 
 	"github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
@@ -23,62 +20,22 @@ func TestSuite(t *testing.T) {
 }
 
 const (
-	ignitionSock = "/tmp/ignition.sock"
 	sshPort      = 2223
 	ignitionUser = "test"
 	// #nosec "test" (for manual usage)
 	ignitionPasswordHash = "$y$j9T$TqJWt3/mKJbH0sYi6B/LD1$QjVRuUgntjTHjAdAkqhkr4F73m.Be4jBXdAaKw98sPC" // notsecret
-	efiStore             = "efi-variable-store"
 	vfkitVersionNeeded   = 0.6
 )
 
 var (
 	tmpDir string
-	binDir string
 	vm     *e2e_utils.VirtualMachine
-	client *exec.Cmd
-	cmdDir string
 )
 
 // var debugEnabled = flag.Bool("debug", false, "enable debugger")
 
-func init() {
-	flag.StringVar(&binDir, "bin", "../bin", "directory with compiled binaries")
-	cmdDir = "../cmd"
-}
-
-func vfkitCmd(diskImage, ignFile, networkSocket string) (*exec.Cmd, error) {
-	bootloader := vfkit.NewEFIBootloader(efiStore, true)
-	vm := vfkit.NewVirtualMachine(2, 2048, bootloader)
-	disk, err := vfkit.VirtioBlkNew(diskImage)
-	if err != nil {
-		return nil, err
-	}
-	err = vm.AddDevice(disk)
-	if err != nil {
-		return nil, err
-	}
-	net, err := vfkit.VirtioNetNew("5a:94:ef:e4:0c:ee")
-	if err != nil {
-		return nil, err
-	}
-	net.SetUnixSocketPath(networkSocket)
-	err = vm.AddDevice(net)
-	if err != nil {
-		return nil, err
-	}
-	ignition, err := vfkit.IgnitionNew(ignFile, ignitionSock)
-	if err != nil {
-		return nil, err
-	}
-	vm.Ignition = ignition
-	return vm.Cmd(e2e_utils.VfkitExecutable())
-}
-
 var _ = ginkgo.BeforeSuite(func() {
 	tmpDir = ginkgo.GinkgoT().TempDir()
-	// clear the environment before running the tests. It may happen the tests were abruptly stopped earlier leaving a dirty env
-	cleanup()
 
 	// check if vfkit version is greater than v0.5 (ignition support is available starting from v0.6)
 	version, err := e2e_utils.VfkitVersion()
@@ -112,6 +69,8 @@ var _ = ginkgo.BeforeSuite(func() {
 	*/
 
 	vmConfig := &e2e_utils.VirtualMachineConfig{
+		DiskImage:    fcosImage,
+		IgnitionFile: ignFile,
 		SSHConfig: &e2e_utils.SSHConfig{
 			IdentityPath:   privateKeyFile,
 			Port:           sshPort,
@@ -123,34 +82,10 @@ var _ = ginkgo.BeforeSuite(func() {
 
 	err = vm.Start()
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-
-	client, err := vfkitCmd(fcosImage, ignFile, vmConfig.NetworkSocket)
-	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-	client.Stderr = os.Stderr
-	client.Stdout = os.Stdout
-	gomega.Expect(client.Start()).Should(gomega.Succeed())
-	err = e2e_utils.WaitSSH(client, sshExec)
-	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 })
-
-func cleanup() {
-	_ = os.Remove(efiStore)
-
-	// this is handled by vfkit since vfkit v0.6.1 released in March 2025
-	// it removes the ignition.sock file
-	socketPath := filepath.Join(os.TempDir(), "ignition.sock")
-	_ = os.Remove(socketPath)
-}
 
 var _ = ginkgo.AfterSuite(func() {
 	log.Infof("killing processes")
 	err := vm.Kill()
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-
-	if client != nil {
-		if err := client.Process.Kill(); err != nil {
-			log.Error(err)
-		}
-	}
-	cleanup()
 })
