@@ -10,9 +10,12 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"syscall"
 
 	gvproxyclient "github.com/containers/gvisor-tap-vsock/pkg/client"
+	"github.com/containers/gvisor-tap-vsock/pkg/types"
 	g "github.com/onsi/ginkgo/v2"
+	log "github.com/sirupsen/logrus"
 )
 
 var GvproxyAPISocket string
@@ -56,14 +59,45 @@ type SSHConfig struct {
 	RemoteUsername string
 }
 
+type VirtualMachineConfig struct {
+	// IgnitionSocket string // vfkit-specific
+	NetworkSocket string
+	// EFIStore       string // vfkit-specific
+	servicesSocket string
+	SSHConfig      *SSHConfig
+}
+
 type VirtualMachine struct {
+	gvproxyCmd     *GvproxyCmdBuilder
+	gvproxyProcess *os.Process
+	// gvErrChan  chan error
+	gvSockets []string
+
 	sshConfig SSHConfig
 }
 
-func NewVirtualMachine() (*VirtualMachine, error) {
-	// cannot be initialized early as `GinkgoT().TempDir()` cannot be called outside of specific locations
-	GvproxyAPISocket = filepath.Join(g.GinkgoT().TempDir(), "api.sock")
-	return &VirtualMachine{}, nil
+func NewVirtualMachine(kind VMKind, vmConfig *VirtualMachineConfig) (*VirtualMachine, error) {
+	switch kind {
+	case QEMU:
+		return NewQemuVirtualMachine(vmConfig)
+	case VFKit:
+		return NewVfkitVirtualMachine(vmConfig)
+	default:
+		return nil, fmt.Errorf("unknown hypervisor kind: %d", kind)
+	}
+}
+
+func newVirtualMachine(gvCmd *GvproxyCmdBuilder) (*VirtualMachine, error) {
+	if gvCmd == nil {
+		return nil, fmt.Errorf("gvproxy command is required")
+	}
+	return &VirtualMachine{
+		gvproxyCmd: gvCmd,
+	}, nil
+}
+
+func (vm *VirtualMachine) GvproxyCmdBuilder() *GvproxyCmdBuilder {
+	return vm.gvproxyCmd
 }
 
 func (vm *VirtualMachine) GvproxyAPISocket() string {
@@ -98,8 +132,56 @@ func FetchDiskImage(vmKind VMKind) (string, error) {
 	return image, nil
 }
 
+func (vm *VirtualMachine) SetGvproxySockets(sockets ...string) {
+	vm.gvSockets = sockets
+}
+
 func (vm *VirtualMachine) SetSSHConfig(config *SSHConfig) {
 	vm.sshConfig = *config
+}
+
+func (vm *VirtualMachine) Start() error {
+	log.Debugf("starting gvproxy")
+	gvGoCmd, err := vm.gvproxyCmd.Cmd()
+	if err != nil {
+		return err
+	}
+	if err := gvGoCmd.Start(); err != nil {
+		return err
+	}
+	vm.gvproxyProcess = gvGoCmd.Process
+	if err := WaitGvproxy(gvGoCmd, vm.gvSockets...); err != nil {
+		return err
+	}
+	log.Infof("gvproxy running")
+
+	return nil
+}
+
+func (vm *VirtualMachine) Terminate() error {
+	if vm.gvproxyProcess != nil {
+		log.Infof("terminating gvproxy")
+		if err := vm.gvproxyProcess.Signal(syscall.SIGTERM); err != nil {
+			log.Infof("error terminating gvproxy: %v", err)
+		} else {
+			log.Infof("no error")
+		}
+	}
+
+	return nil
+}
+
+func (vm *VirtualMachine) Kill() error {
+	if vm.gvproxyProcess != nil {
+		log.Infof("killing gvproxy")
+		if err := vm.gvproxyProcess.Kill(); err != nil {
+			log.Infof("error killing gvproxy: %v", err)
+		} else {
+			log.Infof("no error")
+		}
+	}
+
+	return nil
 }
 
 func (vm *VirtualMachine) Run(cmd ...string) ([]byte, error) {
@@ -129,10 +211,23 @@ func (vm *VirtualMachine) scp(src, dst string) error {
 	sshCmd.Stdout = os.Stdout
 	return sshCmd.Run()
 }
+
 func (vm *VirtualMachine) CopyToVM(src, dst string) error {
 	return vm.scp(src, fmt.Sprintf("%s@127.0.0.1:%s", vm.sshConfig.RemoteUsername, dst))
 }
 
 func (vm *VirtualMachine) CopyFromVM(src, dst string) error {
 	return vm.scp(fmt.Sprintf("%s@127.0.0.1:%s", vm.sshConfig.RemoteUsername, src), dst)
+}
+
+func gvproxyCmd(vmConfig *VirtualMachineConfig) *types.GvproxyCommand {
+	// cannot be initialized early as `GinkgoT().TempDir()` cannot be called outside of specific locations
+	GvproxyAPISocket = filepath.Join(g.GinkgoT().TempDir(), "api.sock")
+	vmConfig.servicesSocket = GvproxyAPISocket
+
+	cmd := types.NewGvproxyCommand()
+	cmd.AddEndpoint(fmt.Sprintf("unix://%s", vmConfig.servicesSocket))
+	cmd.SSHPort = vmConfig.SSHConfig.Port
+
+	return &cmd
 }

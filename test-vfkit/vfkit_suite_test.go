@@ -4,13 +4,11 @@ package e2evfkit
 
 import (
 	"flag"
-	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"testing"
 
-	"github.com/containers/gvisor-tap-vsock/pkg/types"
 	e2e_utils "github.com/containers/gvisor-tap-vsock/test-utils"
 	vfkit "github.com/crc-org/vfkit/pkg/config"
 
@@ -25,7 +23,6 @@ func TestSuite(t *testing.T) {
 }
 
 const (
-	vfkitSock    = "/tmp/vfkit.sock"
 	ignitionSock = "/tmp/ignition.sock"
 	sshPort      = 2223
 	ignitionUser = "test"
@@ -39,28 +36,18 @@ var (
 	tmpDir string
 	binDir string
 	vm     *e2e_utils.VirtualMachine
-	host   *exec.Cmd
 	client *exec.Cmd
 	cmdDir string
 )
 
-var debugEnabled = flag.Bool("debug", false, "enable debugger")
+// var debugEnabled = flag.Bool("debug", false, "enable debugger")
 
 func init() {
 	flag.StringVar(&binDir, "bin", "../bin", "directory with compiled binaries")
 	cmdDir = "../cmd"
 }
 
-func gvproxyCmd(apiSocket string) *exec.Cmd {
-	cmd := types.NewGvproxyCommand()
-	cmd.AddEndpoint(fmt.Sprintf("unix://%s", apiSocket))
-	cmd.AddVfkitSocket("unixgram://" + vfkitSock)
-	cmd.SSHPort = sshPort
-
-	return cmd.Cmd(filepath.Join(binDir, "gvproxy"))
-}
-
-func vfkitCmd(diskImage, ignFile string) (*exec.Cmd, error) {
+func vfkitCmd(diskImage, ignFile, networkSocket string) (*exec.Cmd, error) {
 	bootloader := vfkit.NewEFIBootloader(efiStore, true)
 	vm := vfkit.NewVirtualMachine(2, 2048, bootloader)
 	disk, err := vfkit.VirtioBlkNew(diskImage)
@@ -75,7 +62,7 @@ func vfkitCmd(diskImage, ignFile string) (*exec.Cmd, error) {
 	if err != nil {
 		return nil, err
 	}
-	net.SetUnixSocketPath(vfkitSock)
+	net.SetUnixSocketPath(networkSocket)
 	err = vm.AddDevice(net)
 	if err != nil {
 		return nil, err
@@ -115,30 +102,29 @@ var _ = ginkgo.BeforeSuite(func() {
 	err = e2e_utils.CreateIgnition(ignFile, publicKey, ignitionUser, ignitionPasswordHash)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	vm, err = e2e_utils.NewVirtualMachine()
-	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-	vm.SetSSHConfig(&e2e_utils.SSHConfig{
-		IdentityPath:   privateKeyFile,
-		Port:           sshPort,
-		RemoteUsername: ignitionUser,
-	})
+	/*
+		if *debugEnabled {
+			gvproxyArgs := host.Args[1:]
+			dlvArgs := []string{"debug", "--headless", "--listen=:2345", "--api-version=2", "--accept-multiclient", filepath.Join(cmdDir, "gvproxy"), "--"}
+			dlvArgs = append(dlvArgs, gvproxyArgs...)
+			host = exec.Command("dlv", dlvArgs...)
+		}
+	*/
 
-	host = gvproxyCmd(vm.GvproxyAPISocket())
-	if *debugEnabled {
-		gvproxyArgs := host.Args[1:]
-		dlvArgs := []string{"debug", "--headless", "--listen=:2345", "--api-version=2", "--accept-multiclient", filepath.Join(cmdDir, "gvproxy"), "--"}
-		dlvArgs = append(dlvArgs, gvproxyArgs...)
-		host = exec.Command("dlv", dlvArgs...)
+	vmConfig := &e2e_utils.VirtualMachineConfig{
+		SSHConfig: &e2e_utils.SSHConfig{
+			IdentityPath:   privateKeyFile,
+			Port:           sshPort,
+			RemoteUsername: ignitionUser,
+		},
 	}
-
-	host.Stderr = os.Stderr
-	host.Stdout = os.Stdout
-
-	gomega.Expect(host.Start()).Should(gomega.Succeed())
-	err = e2e_utils.WaitGvproxy(host, vm.GvproxyAPISocket(), vfkitSock)
+	vm, err = e2e_utils.NewVirtualMachine(e2e_utils.VFKit, vmConfig)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	client, err := vfkitCmd(fcosImage, ignFile)
+	err = vm.Start()
+	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	client, err := vfkitCmd(fcosImage, ignFile, vmConfig.NetworkSocket)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 	client.Stderr = os.Stderr
 	client.Stdout = os.Stdout
@@ -149,8 +135,6 @@ var _ = ginkgo.BeforeSuite(func() {
 
 func cleanup() {
 	_ = os.Remove(efiStore)
-	_ = os.Remove(vm.GvproxyAPISocket())
-	_ = os.Remove(vfkitSock)
 
 	// this is handled by vfkit since vfkit v0.6.1 released in March 2025
 	// it removes the ignition.sock file
@@ -159,11 +143,10 @@ func cleanup() {
 }
 
 var _ = ginkgo.AfterSuite(func() {
-	if host != nil {
-		if err := host.Process.Kill(); err != nil {
-			log.Error(err)
-		}
-	}
+	log.Infof("killing processes")
+	err := vm.Kill()
+	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+
 	if client != nil {
 		if err := client.Process.Kill(); err != nil {
 			log.Error(err)

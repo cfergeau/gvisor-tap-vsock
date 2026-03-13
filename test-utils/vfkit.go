@@ -3,11 +3,35 @@ package e2eutils
 import (
 	"fmt"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
 
+	"github.com/containers/gvisor-tap-vsock/pkg/types"
+	g "github.com/onsi/ginkgo/v2"
 	"golang.org/x/mod/semver"
 )
+
+func VfkitGvproxyCmd(vmConfig *VirtualMachineConfig) *types.GvproxyCommand {
+	cmd := gvproxyCmd(vmConfig)
+	vmConfig.NetworkSocket = filepath.Join(g.GinkgoT().TempDir(), "net.sock")
+	cmd.AddVfkitSocket("unixgram://" + vmConfig.NetworkSocket)
+
+	return cmd
+}
+
+func NewVfkitVirtualMachine(vmConfig *VirtualMachineConfig) (*VirtualMachine, error) {
+	gvCmd := VfkitGvproxyCmd(vmConfig)
+
+	vm, err := newVirtualMachine(&GvproxyCmdBuilder{gvCmd})
+	if err != nil {
+		return nil, err
+	}
+	vm.SetGvproxySockets(vmConfig.servicesSocket, vmConfig.NetworkSocket)
+	vm.SetSSHConfig(vmConfig.SSHConfig)
+
+	return vm, nil
+}
 
 func VfkitVersion() (float64, error) {
 	executable := VfkitExecutable()
