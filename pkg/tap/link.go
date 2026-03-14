@@ -138,7 +138,8 @@ func (e *LinkEndpoint) writePacket(r stack.RouteInfo, protocol tcpip.NetworkProt
 		transportLayer := header.ICMPv6(pkt.TransportHeader().View().AsSlice())
 		if transportLayer.Type() == header.ICMPv6NeighborAdvert {
 			ip := header.NDPNeighborAdvert(transportLayer.MessageBody()).TargetAddress().String()
-			if ip != e.ipv6 {
+			// also accepts ND package from link local address.
+			if ip != e.ipv6 && ip != "fe80::1" {
 				log.Debugf("dropping spoofing packets from the gateway about IP %s", ip)
 				return nil
 			}
