@@ -1,7 +1,6 @@
 package e2eutils
 
 import (
-	"fmt"
 	"net"
 	"os"
 	"os/exec"
@@ -9,6 +8,11 @@ import (
 
 	"github.com/containers/gvisor-tap-vsock/pkg/types"
 	g "github.com/onsi/ginkgo/v2"
+)
+
+const (
+	PodmanSock     = "/run/user/1001/podman/podman.sock"
+	PodmanRootSock = "/run/podman/podman.sock"
 )
 
 type CmdBuilder interface {
@@ -45,17 +49,16 @@ func (cmd *GvproxyCmdBuilder) Cmd() (*exec.Cmd, error) {
 func NewQemuVirtualMachine(vmConfig *VirtualMachineConfig) (*VirtualMachine, error) {
 	// cannot be initialized early as `GinkgoT().TempDir()` cannot be called outside of specific locations
 	GvproxyAPISocket = filepath.Join(g.GinkgoT().TempDir(), "api.sock")
-	vmConfig.networkSocket = net.JoinHostPort("127.0.0.1", "5555")
-	vmConfig.servicesSocket = GvproxyAPISocket
-	qemuCmd := defaultQemuConfig(vmConfig)
 	gvCmd := defaultGvproxyConfig(vmConfig)
+	qemuCmd := defaultQemuConfig(vmConfig)
 
-	vm, err := newVirtualMachine(&QemuCmdBuilder{qemuCmd}, &GvproxyCmdBuilder{gvCmd})
+	vm, err := newVirtualMachine(vmConfig, &QemuCmdBuilder{qemuCmd}, &GvproxyCmdBuilder{gvCmd})
 	if err != nil {
 		return nil, err
 	}
 	vm.vmKind = QEMU
 	vm.SetGvproxySockets(vmConfig.servicesSocket)
+	vm.SetGvproxyUnixForwardSocks(vmConfig.gvForwardSocks)
 	vm.SetSSHConfig(vmConfig.SSHConfig)
 
 	return vm, nil
@@ -72,11 +75,27 @@ func defaultQemuConfig(vmConfig *VirtualMachineConfig) *qemuCmd {
 	return qemuCmd
 }
 
-func defaultGvproxyConfig(vmConfig *VirtualMachineConfig) *types.GvproxyCommand {
-	cmd := types.NewGvproxyCommand()
-	cmd.AddServiceEndpoint(fmt.Sprintf("unix://%s", vmConfig.servicesSocket))
-	cmd.AddQemuSocket("tcp://" + vmConfig.networkSocket)
-	cmd.SSHPort = vmConfig.SSHConfig.Port
+func addSSHForwards(cmd *types.GvproxyCommand, vmConfig *VirtualMachineConfig) []string {
+	tmpDir := g.GinkgoT().TempDir()
+	forwardSock := filepath.Join(tmpDir, "podman-remote.sock")
+	cmd.AddForwardSock(forwardSock)
+	cmd.AddForwardDest(PodmanSock)
+	cmd.AddForwardUser(vmConfig.SSHConfig.RemoteUsername)
+	cmd.AddForwardIdentity(vmConfig.SSHConfig.IdentityPath)
 
-	return &cmd
+	forwardRootSock := filepath.Join(tmpDir, "podman-root-remote.sock")
+	cmd.AddForwardSock(forwardRootSock)
+	cmd.AddForwardDest(PodmanRootSock)
+	cmd.AddForwardUser("root")
+	cmd.AddForwardIdentity(vmConfig.SSHConfig.IdentityPath)
+
+	return []string{forwardSock, forwardRootSock}
+}
+
+func defaultGvproxyConfig(vmConfig *VirtualMachineConfig) *types.GvproxyCommand {
+	cmd := gvproxyCmd(vmConfig)
+	vmConfig.networkSocket = net.JoinHostPort("127.0.0.1", "5555")
+	cmd.AddQemuSocket("tcp://" + vmConfig.networkSocket)
+
+	return cmd
 }

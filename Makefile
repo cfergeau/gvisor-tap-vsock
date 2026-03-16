@@ -86,7 +86,7 @@ test-qemu: gvproxy test-companion
 	go test -timeout 20m  -v ./test-qemu
 
 .PHONY: test-mac
-test-mac: gvproxy
+test-mac: gvproxy test-companion
 	go test -timeout 20m  -v ./test-vfkit
 
 .PHONY: test-mac-debug
