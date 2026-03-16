@@ -83,11 +83,11 @@ test: gvproxy test-companion
 
 .PHONY: test-qemu
 test-qemu: gvproxy test-companion
-	go test -timeout 20m  -v ./test-qemu
+	go test -timeout 20m  -v ./test-qemu --hypervisor=qemu
 
 .PHONY: test-mac
 test-mac: gvproxy test-companion
-	go test -timeout 20m  -v ./test-vfkit
+	go test -timeout 20m  -v ./test-qemu --hypervisor=vfkit
 
 .PHONY: test-mac-debug
 test-mac-debug:
