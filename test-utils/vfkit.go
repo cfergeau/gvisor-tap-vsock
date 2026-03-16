@@ -14,6 +14,10 @@ import (
 	"golang.org/x/mod/semver"
 )
 
+const (
+	vfkitVersionNeeded = 0.6
+)
+
 func VfkitCmd(vmConfig *VirtualMachineConfig) (*vfkit.VirtualMachine, error) {
 	tmpDir := g.GinkgoT().TempDir()
 	bootloader := vfkit.NewEFIBootloader(filepath.Join(tmpDir, "efistore"), true)
@@ -68,6 +72,15 @@ func VfkitGvproxyCmd(vmConfig *VirtualMachineConfig) *types.GvproxyCommand {
 }
 
 func NewVfkitVirtualMachine(vmConfig *VirtualMachineConfig) (*VirtualMachine, error) {
+	// check if vfkit version is greater than v0.5 (ignition support is available starting from v0.6)
+	version, err := vfkitVersion()
+	if err != nil {
+		return nil, err
+	}
+	if version < vfkitVersionNeeded {
+		return nil, fmt.Errorf("vfkit version %f detected, the test suite requires vfkit %f or newer", version, vfkitVersionNeeded)
+	}
+
 	// cannot be initialized early as `GinkgoT().TempDir()` cannot be called outside of specific locations
 	GvproxyAPISocket = filepath.Join(g.GinkgoT().TempDir(), "api.sock")
 	gvCmd := VfkitGvproxyCmd(vmConfig)
@@ -85,7 +98,7 @@ func NewVfkitVirtualMachine(vmConfig *VirtualMachineConfig) (*VirtualMachine, er
 	return vm, nil
 }
 
-func VfkitVersion() (float64, error) {
+func vfkitVersion() (float64, error) {
 	executable := vfkitExecutable()
 	if executable == "" {
 		return 0, fmt.Errorf("vfkit executable not found")
