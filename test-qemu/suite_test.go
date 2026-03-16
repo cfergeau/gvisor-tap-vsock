@@ -22,7 +22,7 @@ const (
 	ignitionUser = "test"
 
 	// #nosec "test" (for manual usage)
-	ignitionPasswordHash = "$y$j9T$TqJWt3/mKJbH0sYi6B/LD1$QjVRuUgntjTHjAdAkqhkr4F73m.Be4jBXdAaKw98sPC"
+	ignitionPasswordHash = "$y$j9T$TqJWt3/mKJbH0sYi6B/LD1$QjVRuUgntjTHjAdAkqhkr4F73m.Be4jBXdAaKw98sPC" // notsecret
 )
 
 var (
@@ -36,6 +36,8 @@ func init() {
 	flag.StringVar(&hypervisor, "hypervisor", "qemu", "hypervisor to use (qemu or vfkit)")
 }
 
+// var debugEnabled = flag.Bool("debug", false, "enable debugger")
+
 var _ = ginkgo.BeforeSuite(func() {
 	// Parse hypervisor from environment variable or flag
 	var err error
@@ -43,13 +45,17 @@ var _ = ginkgo.BeforeSuite(func() {
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	tmpDir = ginkgo.GinkgoT().TempDir()
-	privateKeyFile := filepath.Join(tmpDir, "id_test_qemu")
-	publicKeyFile := privateKeyFile + ".pub"
+
+	// check if ssh port is free
+	gomega.Expect(e2e_utils.IsPortAvailable(sshPort)).Should(gomega.BeTrue())
 
 	gomega.Expect(os.MkdirAll(filepath.Join("cache", "disks"), os.ModePerm)).Should(gomega.Succeed())
+
 	fcosImage, err := e2e_utils.FetchDiskImage(vmKind)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
+	privateKeyFile := filepath.Join(tmpDir, "id_test_qemu")
+	publicKeyFile := privateKeyFile + ".pub"
 	publicKey, err := e2e_utils.CreateSSHKeys(publicKeyFile, privateKeyFile)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
@@ -57,7 +63,16 @@ var _ = ginkgo.BeforeSuite(func() {
 	err = e2e_utils.CreateIgnition(ignFile, publicKey, ignitionUser, ignitionPasswordHash)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	vmConfig := e2e_utils.VirtualMachineConfig{
+	/*
+		if *debugEnabled {
+			gvproxyArgs := host.Args[1:]
+			dlvArgs := []string{"debug", "--headless", "--listen=:2345", "--api-version=2", "--accept-multiclient", filepath.Join(cmdDir, "gvproxy"), "--"}
+			dlvArgs = append(dlvArgs, gvproxyArgs...)
+			host = exec.Command("dlv", dlvArgs...)
+		}
+	*/
+
+	vmConfig := &e2e_utils.VirtualMachineConfig{
 		DiskImage:    fcosImage,
 		IgnitionFile: ignFile,
 		SSHConfig: &e2e_utils.SSHConfig{
@@ -67,7 +82,7 @@ var _ = ginkgo.BeforeSuite(func() {
 		},
 	}
 
-	vm, err = e2e_utils.NewVirtualMachine(vmKind, &vmConfig)
+	vm, err = e2e_utils.NewVirtualMachine(vmKind, vmConfig)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	err = vm.Start()

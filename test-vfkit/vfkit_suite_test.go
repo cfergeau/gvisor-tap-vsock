@@ -12,7 +12,6 @@ import (
 
 	"github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
-	log "github.com/sirupsen/logrus"
 )
 
 func TestSuite(t *testing.T) {
@@ -51,7 +50,7 @@ var _ = ginkgo.BeforeSuite(func() {
 	// check if ssh port is free
 	gomega.Expect(e2e_utils.IsPortAvailable(sshPort)).Should(gomega.BeTrue())
 
-	gomega.Expect(os.MkdirAll(filepath.Join(tmpDir, "disks"), os.ModePerm)).Should(gomega.Succeed())
+	gomega.Expect(os.MkdirAll(filepath.Join("cache", "disks"), os.ModePerm)).Should(gomega.Succeed())
 
 	fcosImage, err := e2e_utils.FetchDiskImage(vmKind)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -83,6 +82,7 @@ var _ = ginkgo.BeforeSuite(func() {
 			RemoteUsername: ignitionUser,
 		},
 	}
+
 	vm, err = e2e_utils.NewVirtualMachine(vmKind, vmConfig)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
@@ -91,7 +91,6 @@ var _ = ginkgo.BeforeSuite(func() {
 })
 
 var _ = ginkgo.AfterSuite(func() {
-	log.Infof("killing processes")
 	err := vm.Kill()
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 })
