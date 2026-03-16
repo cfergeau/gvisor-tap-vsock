@@ -81,6 +81,7 @@ func NewVfkitVirtualMachine(vmConfig *VirtualMachineConfig) (*VirtualMachine, er
 	if err != nil {
 		return nil, err
 	}
+	vm.vmKind = VFKit
 	vm.SetGvproxySockets(vmConfig.servicesSocket, vmConfig.networkSocket)
 	vm.SetSSHConfig(vmConfig.SSHConfig)
 

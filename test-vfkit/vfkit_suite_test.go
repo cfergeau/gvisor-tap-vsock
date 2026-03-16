@@ -3,6 +3,7 @@
 package e2evfkit
 
 import (
+	"flag"
 	"os"
 	"path/filepath"
 	"testing"
@@ -28,13 +29,24 @@ const (
 )
 
 var (
-	tmpDir string
-	vm     *e2e_utils.VirtualMachine
+	tmpDir     string
+	vm         *e2e_utils.VirtualMachine
+	hypervisor string
+	vmKind     e2e_utils.VMKind
 )
+
+func init() {
+	flag.StringVar(&hypervisor, "hypervisor", "vfkit", "hypervisor to use (qemu or vfkit)")
+}
 
 // var debugEnabled = flag.Bool("debug", false, "enable debugger")
 
 var _ = ginkgo.BeforeSuite(func() {
+	// Parse hypervisor from environment variable or flag
+	var err error
+	vmKind, err = e2e_utils.GetVMKind(hypervisor)
+	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+
 	tmpDir = ginkgo.GinkgoT().TempDir()
 
 	// check if vfkit version is greater than v0.5 (ignition support is available starting from v0.6)
@@ -47,7 +59,7 @@ var _ = ginkgo.BeforeSuite(func() {
 
 	gomega.Expect(os.MkdirAll(filepath.Join(tmpDir, "disks"), os.ModePerm)).Should(gomega.Succeed())
 
-	fcosImage, err := e2e_utils.FetchDiskImage(e2e_utils.VFKit)
+	fcosImage, err := e2e_utils.FetchDiskImage(vmKind)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	privateKeyFile := filepath.Join(tmpDir, "id_test_vfkit")
@@ -77,7 +89,7 @@ var _ = ginkgo.BeforeSuite(func() {
 			RemoteUsername: ignitionUser,
 		},
 	}
-	vm, err = e2e_utils.NewVirtualMachine(e2e_utils.VFKit, vmConfig)
+	vm, err = e2e_utils.NewVirtualMachine(vmKind, vmConfig)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	err = vm.Start()

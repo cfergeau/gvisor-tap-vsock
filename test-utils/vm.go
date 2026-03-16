@@ -32,10 +32,31 @@ func (k VMKind) String() string {
 	case QEMU:
 		return "qemu"
 	case VFKit:
-		return "applehv"
+		return "vfkit"
 	default:
 		return ""
 	}
+}
+
+func ParseVMKind(s string) (VMKind, error) {
+	switch s {
+	case "qemu":
+		return QEMU, nil
+	case "vfkit":
+		return VFKit, nil
+	default:
+		return 0, fmt.Errorf("unknown hypervisor: %s", s)
+	}
+}
+
+// GetVMKind reads the hypervisor from the HYPERVISOR environment variable,
+// falling back to the provided flagValue if the environment variable is not set.
+func GetVMKind(flagValue string) (VMKind, error) {
+	hvStr := os.Getenv("HYPERVISOR")
+	if hvStr == "" {
+		hvStr = flagValue
+	}
+	return ParseVMKind(hvStr)
 }
 
 func (k VMKind) FcosFormatType() string {
@@ -71,6 +92,7 @@ type VirtualMachineConfig struct {
 }
 
 type VirtualMachine struct {
+	vmKind         VMKind
 	gvproxyCmd     *GvproxyCmdBuilder
 	gvproxyProcess *os.Process
 	// gvErrChan  chan error
@@ -132,7 +154,12 @@ func FetchDiskImage(vmKind VMKind) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	image, err := downloader.DownloadImage(vmKind.String(), vmKind.FcosFormatType())
+
+	artifactType := vmKind.String()
+	if vmKind == VFKit {
+		artifactType = "applehv"
+	}
+	image, err := downloader.DownloadImage(artifactType, vmKind.FcosFormatType())
 	if err != nil {
 		return "", err
 	}
