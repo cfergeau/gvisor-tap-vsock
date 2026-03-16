@@ -54,6 +54,7 @@ func NewQemuVirtualMachine(vmConfig *VirtualMachineConfig) (*VirtualMachine, err
 	if err != nil {
 		return nil, err
 	}
+	vm.vmKind = QEMU
 	vm.SetGvproxySockets(vmConfig.servicesSocket)
 	vm.SetSSHConfig(vmConfig.SSHConfig)
 

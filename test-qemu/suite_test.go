@@ -26,8 +26,6 @@ const (
 
 	// #nosec "test" (for manual usage)
 	ignitionPasswordHash = "$y$j9T$TqJWt3/mKJbH0sYi6B/LD1$QjVRuUgntjTHjAdAkqhkr4F73m.Be4jBXdAaKw98sPC"
-
-	vmKind = e2e_utils.QEMU
 )
 
 var (
@@ -37,10 +35,13 @@ var (
 	forwardSock     string
 	forwardRootSock string
 	vm              *e2e_utils.VirtualMachine
+	hypervisor      string
+	vmKind          e2e_utils.VMKind
 )
 
 func init() {
 	flag.StringVar(&binDir, "bin", "../bin", "directory with compiled binaries")
+	flag.StringVar(&hypervisor, "hypervisor", "qemu", "hypervisor to use (qemu or vfkit)")
 }
 
 func addSSHForwards(vm *e2e_utils.VirtualMachine) {
@@ -57,6 +58,11 @@ func addSSHForwards(vm *e2e_utils.VirtualMachine) {
 }
 
 var _ = ginkgo.BeforeSuite(func() {
+	// Parse hypervisor from environment variable or flag
+	var err error
+	vmKind, err = e2e_utils.GetVMKind(hypervisor)
+	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+
 	tmpDir = ginkgo.GinkgoT().TempDir()
 	privateKeyFile = filepath.Join(tmpDir, "id_test_qemu")
 	publicKeyFile := privateKeyFile + ".pub"
