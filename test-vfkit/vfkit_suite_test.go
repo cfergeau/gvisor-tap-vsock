@@ -25,7 +25,6 @@ const (
 	ignitionUser = "test"
 	// #nosec "test" (for manual usage)
 	ignitionPasswordHash = "$y$j9T$TqJWt3/mKJbH0sYi6B/LD1$QjVRuUgntjTHjAdAkqhkr4F73m.Be4jBXdAaKw98sPC" // notsecret
-	vfkitVersionNeeded   = 0.6
 )
 
 var (
@@ -48,11 +47,6 @@ var _ = ginkgo.BeforeSuite(func() {
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	tmpDir = ginkgo.GinkgoT().TempDir()
-
-	// check if vfkit version is greater than v0.5 (ignition support is available starting from v0.6)
-	version, err := e2e_utils.VfkitVersion()
-	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-	gomega.Expect(version >= vfkitVersionNeeded).Should(gomega.BeTrue())
 
 	// check if ssh port is free
 	gomega.Expect(e2e_utils.IsPortAvailable(sshPort)).Should(gomega.BeTrue())
