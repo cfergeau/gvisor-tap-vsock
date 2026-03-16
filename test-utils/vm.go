@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
+	"time"
 
 	gvproxyclient "github.com/containers/gvisor-tap-vsock/pkg/client"
 	"github.com/containers/gvisor-tap-vsock/pkg/types"
@@ -84,7 +85,8 @@ type VirtualMachineConfig struct {
 	DiskImage    string
 	IgnitionFile string
 	// IgnitionSocket string // vfkit-specific
-	networkSocket string
+	networkSocket  string
+	gvForwardSocks []string
 	// EFIStore       string // vfkit-specific
 	servicesSocket string
 	Logfile        string // for now only used with qemu
@@ -97,6 +99,8 @@ type VirtualMachine struct {
 	gvproxyProcess *os.Process
 	// gvErrChan  chan error
 	gvSockets []string
+	// unix sockets which have been forwarded at gvproxy startup
+	gvUnixForwardSocks []string
 
 	hypervisorCmd     CmdBuilder
 	hypervisorProcess *os.Process
@@ -116,14 +120,20 @@ func NewVirtualMachine(kind VMKind, vmConfig *VirtualMachineConfig) (*VirtualMac
 	}
 }
 
-func newVirtualMachine(hvCmd CmdBuilder, gvCmd *GvproxyCmdBuilder) (*VirtualMachine, error) {
+func newVirtualMachine(vmConfig *VirtualMachineConfig, hvCmd CmdBuilder, gvCmd *GvproxyCmdBuilder) (*VirtualMachine, error) {
 	if hvCmd == nil || gvCmd == nil {
 		return nil, fmt.Errorf("both hypervisor and gvproxy commands are required")
 	}
-	return &VirtualMachine{
+	vm := &VirtualMachine{
 		gvproxyCmd:    gvCmd,
 		hypervisorCmd: hvCmd,
-	}, nil
+	}
+
+	vm.SetGvproxySockets(vmConfig.servicesSocket, vmConfig.networkSocket)
+	vm.SetGvproxyUnixForwardSocks(vmConfig.gvForwardSocks)
+	vm.SetSSHConfig(vmConfig.SSHConfig)
+
+	return vm, nil
 }
 
 func (vm *VirtualMachine) GvproxyCmdBuilder() *GvproxyCmdBuilder {
@@ -142,6 +152,26 @@ func (vm *VirtualMachine) GvproxyAPIClient() *gvproxyclient.Client {
 			},
 		},
 	}, "http://base")
+}
+
+func (vm *VirtualMachine) GvproxyUnixForwardSocks() []string {
+	return vm.gvUnixForwardSocks
+}
+
+func (vm *VirtualMachine) SetGvproxyUnixForwardSocks(forwardSocks []string) {
+	vm.gvUnixForwardSocks = forwardSocks
+}
+
+func (vm *VirtualMachine) SetGvproxySockets(sockets ...string) {
+	vm.gvSockets = sockets
+}
+
+func (vm *VirtualMachine) SetSSHConfig(config *SSHConfig) {
+	vm.sshConfig = *config
+}
+
+func (vm *VirtualMachine) SSHConfig() SSHConfig {
+	return vm.sshConfig
 }
 
 func FetchDiskImage(vmKind VMKind) (string, error) {
@@ -165,14 +195,6 @@ func FetchDiskImage(vmKind VMKind) (string, error) {
 	}
 
 	return image, nil
-}
-
-func (vm *VirtualMachine) SetGvproxySockets(sockets ...string) {
-	vm.gvSockets = sockets
-}
-
-func (vm *VirtualMachine) SetSSHConfig(config *SSHConfig) {
-	vm.sshConfig = *config
 }
 
 func (vm *VirtualMachine) Start() error {
@@ -207,9 +229,29 @@ func (vm *VirtualMachine) Start() error {
 	}
 	log.Infof("hypervisor running")
 
+	if err := vm.startTestCompanion(); err != nil {
+		return err
+	}
+	time.Sleep(5 * time.Second)
+
 	return nil
 }
 
+// test-companion must be running in the guest for the port forwarding tests
+func (vm *VirtualMachine) startTestCompanion() error {
+	err := vm.CopyToVM(filepath.Join("../bin", "test-companion"), "/tmp/test-companion")
+	if err != nil {
+		return err
+	}
+
+	// start an embedded DNS and http server in the VM. Wait a bit for the server to start.
+	cmd := vm.SshCommand("sudo /tmp/test-companion")
+	if err := cmd.Start(); err != nil {
+		return err
+	}
+
+	return nil
+}
 func (vm *VirtualMachine) Terminate() error {
 	if vm.gvproxyProcess != nil {
 		log.Infof("terminating gvproxy")
@@ -295,8 +337,9 @@ func gvproxyCmd(vmConfig *VirtualMachineConfig) *types.GvproxyCommand {
 	vmConfig.servicesSocket = GvproxyAPISocket
 
 	cmd := types.NewGvproxyCommand()
-	cmd.AddEndpoint(fmt.Sprintf("unix://%s", vmConfig.servicesSocket))
+	cmd.AddServiceEndpoint(fmt.Sprintf("unix://%s", vmConfig.servicesSocket))
 	cmd.SSHPort = vmConfig.SSHConfig.Port
+	vmConfig.gvForwardSocks = addSSHForwards(&cmd, vmConfig)
 
 	return &cmd
 }

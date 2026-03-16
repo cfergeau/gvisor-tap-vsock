@@ -70,20 +70,17 @@ func VfkitGvproxyCmd(vmConfig *VirtualMachineConfig) *types.GvproxyCommand {
 func NewVfkitVirtualMachine(vmConfig *VirtualMachineConfig) (*VirtualMachine, error) {
 	// cannot be initialized early as `GinkgoT().TempDir()` cannot be called outside of specific locations
 	GvproxyAPISocket = filepath.Join(g.GinkgoT().TempDir(), "api.sock")
-	vmConfig.servicesSocket = GvproxyAPISocket
+	gvCmd := VfkitGvproxyCmd(vmConfig)
 	vfkitCmd, err := VfkitCmd(vmConfig)
 	if err != nil {
 		return nil, err
 	}
-	gvCmd := VfkitGvproxyCmd(vmConfig)
 
-	vm, err := newVirtualMachine(&VfkitCmdBuilder{vfkitCmd}, &GvproxyCmdBuilder{gvCmd})
+	vm, err := newVirtualMachine(vmConfig, &VfkitCmdBuilder{vfkitCmd}, &GvproxyCmdBuilder{gvCmd})
 	if err != nil {
 		return nil, err
 	}
 	vm.vmKind = VFKit
-	vm.SetGvproxySockets(vmConfig.servicesSocket, vmConfig.networkSocket)
-	vm.SetSSHConfig(vmConfig.SSHConfig)
 
 	return vm, nil
 }

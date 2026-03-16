@@ -14,6 +14,7 @@ import (
 
 	"github.com/containers/gvisor-tap-vsock/pkg/transport"
 	"github.com/containers/gvisor-tap-vsock/pkg/types"
+	e2e_utils "github.com/containers/gvisor-tap-vsock/test-utils"
 	"github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
 	log "github.com/sirupsen/logrus"
@@ -143,50 +144,29 @@ var _ = ginkgo.Describe("port forwarding", func() {
 		}).Should(gomega.Succeed())
 	})
 
-	ginkgo.It("should reach rootless podman API using unix socket forwarding over ssh", func() {
-		httpClient := &http.Client{
-			Transport: &http.Transport{
-				DialContext: func(_ context.Context, _, _ string) (net.Conn, error) {
-					return net.Dial("unix", forwardSock)
+	ginkgo.It("should reach rootless/rootful podman API using unix socket forwarding over ssh", func() {
+		for _, forwardSock := range vm.GvproxyUnixForwardSocks() {
+			httpClient := &http.Client{
+				Transport: &http.Transport{
+					DialContext: func(_ context.Context, _, _ string) (net.Conn, error) {
+						return net.Dial("unix", forwardSock)
+					},
 				},
-			},
+			}
+
+			gomega.Eventually(func(g gomega.Gomega) {
+				resp, err := httpClient.Get("http://host/_ping")
+				g.Expect(err).ShouldNot(gomega.HaveOccurred())
+				g.Expect(resp.StatusCode).To(gomega.Equal(http.StatusOK))
+				g.Expect(resp.ContentLength).To(gomega.Equal(int64(2)))
+
+				reply := make([]byte, resp.ContentLength)
+				_, err = io.ReadAtLeast(resp.Body, reply, len(reply))
+
+				g.Expect(err).ShouldNot(gomega.HaveOccurred())
+				g.Expect(string(reply)).To(gomega.Equal("OK"))
+			}).Should(gomega.Succeed())
 		}
-
-		gomega.Eventually(func(g gomega.Gomega) {
-			resp, err := httpClient.Get("http://host/_ping")
-			g.Expect(err).ShouldNot(gomega.HaveOccurred())
-			g.Expect(resp.StatusCode).To(gomega.Equal(http.StatusOK))
-			g.Expect(resp.ContentLength).To(gomega.Equal(int64(2)))
-
-			reply := make([]byte, resp.ContentLength)
-			_, err = io.ReadAtLeast(resp.Body, reply, len(reply))
-
-			g.Expect(err).ShouldNot(gomega.HaveOccurred())
-			g.Expect(string(reply)).To(gomega.Equal("OK"))
-		}).Should(gomega.Succeed())
-	})
-
-	ginkgo.It("should reach rootful podman API using unix socket forwarding over ssh", func() {
-		httpClient := &http.Client{
-			Transport: &http.Transport{
-				DialContext: func(_ context.Context, _, _ string) (net.Conn, error) {
-					return net.Dial("unix", forwardRootSock)
-				},
-			},
-		}
-
-		gomega.Eventually(func(g gomega.Gomega) {
-			resp, err := httpClient.Get("http://host/_ping")
-			g.Expect(err).ShouldNot(gomega.HaveOccurred())
-			g.Expect(resp.StatusCode).To(gomega.Equal(http.StatusOK))
-			g.Expect(resp.ContentLength).To(gomega.Equal(int64(2)))
-
-			reply := make([]byte, resp.ContentLength)
-			_, err = io.ReadAtLeast(resp.Body, reply, len(reply))
-
-			g.Expect(err).ShouldNot(gomega.HaveOccurred())
-			g.Expect(string(reply)).To(gomega.Equal("OK"))
-		}).Should(gomega.Succeed())
 	})
 
 	ginkgo.It("should expose and reach an http service using unix to tcp forwarding", func() {
@@ -239,7 +219,7 @@ var _ = ginkgo.Describe("port forwarding", func() {
 
 		unix2unixfwdsock, _ := filepath.Abs(filepath.Join(tmpDir, "podman-unix-to-unix-forwarding.sock"))
 
-		remoteuri := fmt.Sprintf(`ssh-tunnel://root@%s:%d%s?key=%s`, "192.168.127.2", 22, podmanSock, privateKeyFile)
+		remoteuri := fmt.Sprintf(`ssh-tunnel://root@%s:%d%s?key=%s`, "192.168.127.2", 22, e2e_utils.PodmanSock, vm.SSHConfig().IdentityPath)
 		_, err := sshExec(`curl http://192.168.127.1/services/forwarder/expose -X POST -d'{"protocol":"unix","local":"` + unix2unixfwdsock + `","remote":"` + remoteuri + `"}'`)
 		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
