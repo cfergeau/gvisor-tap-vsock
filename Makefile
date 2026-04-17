@@ -13,7 +13,7 @@ LDFLAGS = -s -w $(VERSION_LDFLAGS)
 
 .PHONY: gvproxy
 gvproxy:
-	go build -ldflags "$(LDFLAGS)" -o bin/gvproxy ./cmd/gvproxy
+	go build -race -ldflags "$(LDFLAGS)" -o bin/gvproxy ./cmd/gvproxy
 
 .PHONY: qemu-wrapper
 qemu-wrapper:
@@ -79,15 +79,15 @@ test-companion:
 
 PHONY: test
 test: gvproxy test-companion
-	go test -timeout 20m -v ./...
+	GORACE="log_path=gvproxy.race.log" go test -timeout 20m -v ./...
 
 .PHONY: test-qemu
 test-qemu: gvproxy test-companion
-	go test -timeout 20m  -v ./test-qemu
+	GORACE="log_path=gvproxy.race.log" go test -timeout 20m  -v ./test-qemu
 
 .PHONY: test-mac
 test-mac: gvproxy
-	go test -timeout 20m  -v ./test-vfkit
+	GORACE="log_path=gvproxy.race.log" go test -timeout 20m  -v ./test-vfkit
 
 .PHONY: test-mac-debug
 test-mac-debug:
