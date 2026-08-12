@@ -111,6 +111,7 @@ func (cmd *qemuCmd) serialArgs() []string {
 	}
 	return []string{"-serial", fmt.Sprintf("file:%s", cmd.serialPath)}
 }
+
 func (cmd *qemuCmd) SetIgnition(ignFile string) {
 	cmd.ignFile = ignFile
 }

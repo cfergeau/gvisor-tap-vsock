@@ -103,6 +103,7 @@ var _ = ginkgo.Describe("upload and download with vfkit", func() {
 		tmpDir = dlTmpDir
 	})
 })
+
 var _ = ginkgo.Describe("ping with gvproxy and vfkit", func() {
 	ginkgo.It("should succeed to ping a known domain", func() {
 		out, err := sshExec("ping -w2 crc.dev")

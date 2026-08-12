@@ -66,7 +66,6 @@ func BasicDHCPTests(props BasicTestProps) {
 		gomega.Expect(leases).Should(gomega.HaveKeyWithValue("192.168.127.1", "5a:94:ef:e4:0c:dd"))
 		gomega.Expect(leases).Should(gomega.HaveKeyWithValue("192.168.127.2", "5a:94:ef:e4:0c:ee"))
 	})
-
 }
 
 func BasicDNSTests(props BasicTestProps) {

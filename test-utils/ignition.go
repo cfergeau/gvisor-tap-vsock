@@ -16,7 +16,6 @@ var (
 )
 
 func CreateIgnition(ignitionFile string, publicKey string, user string, password string) error {
-
 	linger := `[Unit]
 Description=Activate podman socket
 Wants=podman.socket

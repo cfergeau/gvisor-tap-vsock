@@ -259,7 +259,6 @@ var _ = ginkgo.Describe("dns add test", func() {
 		})).To(gomega.Succeed())
 		gomega.Expect(server.handler.zones[0].Protected).To(gomega.BeFalse())
 	})
-
 })
 
 var _ = ginkgo.Describe("dns zone validation", func() {
@@ -453,7 +452,6 @@ var _ = ginkgo.Describe("dns zone validation", func() {
 })
 
 var _ = ginkgo.Describe("TXT records", func() {
-
 	var cleanup func()
 	var vsockResolver *net.Resolver
 	var upstream upstreamResolver
@@ -500,7 +498,6 @@ var _ = ginkgo.Describe("TXT records", func() {
 	})
 
 	ginkgo.When("There are long TXT Records", func() {
-
 		hasLongString := func(records []string) bool {
 			for _, txt := range records {
 				if len(txt) > 255 {
@@ -510,7 +507,6 @@ var _ = ginkgo.Describe("TXT records", func() {
 			return false
 		}
 		ginkgo.It("Should produce the same result as upstream Resolver", func() {
-
 			upstreamRecords, err := upstream.LookupTXT(context.Background(), longTxtDomain)
 			gomega.Expect(err).To(gomega.BeNil())
 			gomega.Expect(hasLongString(upstreamRecords)).To(gomega.BeTrue(), "Expected at least one TXT string longer than 255 bytes")
@@ -519,9 +515,7 @@ var _ = ginkgo.Describe("TXT records", func() {
 			gomega.Expect(err).To(gomega.BeNil())
 
 			gomega.Expect(vsockRecords).To(gomega.Equal(upstreamRecords))
-
 		})
-
 	})
 
 	ginkgo.When("there are multiple TXT Records", func() {
@@ -534,10 +528,8 @@ var _ = ginkgo.Describe("TXT records", func() {
 			gomega.Expect(err).To(gomega.BeNil())
 
 			gomega.Expect(vsockRecords).To(gomega.ConsistOf(upstreamRecords))
-
 		})
 	})
-
 })
 
 var _ = ginkgo.Describe("forwarding unhandled record types", func() {
