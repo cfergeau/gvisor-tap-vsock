@@ -130,6 +130,7 @@ func splitTxt(s string) []string {
 
 	return c
 }
+
 func (h *dnsHandler) addAnswers(m *dns.Msg) {
 	for _, q := range m.Question {
 		if done := h.addLocalAnswers(m, q); done {

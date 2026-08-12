@@ -30,9 +30,7 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-var (
-	exitCode int
-)
+var exitCode int
 
 func main() {
 	// Use config or fallback to original behavior
