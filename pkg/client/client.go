@@ -184,9 +184,6 @@ type removeDNSRecordRequest struct {
 // Response:
 // HTTP Status Code
 func (c *Client) RemoveDNSRecord(zoneName string, record *types.Record) error {
-	if zoneName == "" {
-		return errors.New("zone name is required")
-	}
 	req := removeDNSRecordRequest{Name: zoneName, Record: *record}
 	return c.dnsPost("/services/dns/remove/record", req)
 }
