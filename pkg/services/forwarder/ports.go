@@ -400,7 +400,6 @@ func firstValueOrEmpty(x []string) string {
 
 // helper function to build tcpip address
 func tcpipAddress(nicID tcpip.NICID, remote string) (address tcpip.FullAddress, err error) {
-
 	// build the address manual way
 	split := strings.Split(remote, ":")
 	if len(split) != 2 {
@@ -410,7 +409,6 @@ func tcpipAddress(nicID tcpip.NICID, remote string) (address tcpip.FullAddress, 
 	port, err := strconv.ParseUint(split[1], 10, 16)
 	if err != nil {
 		return address, err
-
 	}
 
 	address = tcpip.FullAddress{

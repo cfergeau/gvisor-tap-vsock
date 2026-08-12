@@ -478,7 +478,7 @@ func getLastUsableIPFromSubnet(subnet netip.Prefix) (netip.Addr, error) {
 	if subnet.Bits()+3 > subnet.Addr().BitLen() {
 		return netip.Addr{}, errors.New("subnet too small")
 	}
-	var b = subnet.Masked().Addr().AsSlice()
+	b := subnet.Masked().Addr().AsSlice()
 	for i, v := range net.CIDRMask(subnet.Bits(), subnet.Addr().BitLen()) {
 		b[i] += ^v
 	}

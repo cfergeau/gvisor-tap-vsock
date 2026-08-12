@@ -58,7 +58,6 @@ func init() {
 	ignFile = filepath.Join(tmpDir, "test.ign")
 	forwardSock = filepath.Join(tmpDir, "podman-remote.sock")
 	forwardRootSock = filepath.Join(tmpDir, "podman-root-remote.sock")
-
 }
 
 func gvproxyCmd() *exec.Cmd {

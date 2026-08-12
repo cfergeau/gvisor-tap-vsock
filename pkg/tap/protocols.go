@@ -18,8 +18,7 @@ type streamProtocol interface {
 	Read(buf []byte) int
 }
 
-type hyperkitProtocol struct {
-}
+type hyperkitProtocol struct{}
 
 func (s *hyperkitProtocol) Stream() bool {
 	return true
@@ -41,8 +40,7 @@ func (s *hyperkitProtocol) Read(buf []byte) int {
 	return int(binary.LittleEndian.Uint16(buf[0:2]))
 }
 
-type qemuProtocol struct {
-}
+type qemuProtocol struct{}
 
 func (s *qemuProtocol) Stream() bool {
 	return true
@@ -64,15 +62,13 @@ func (s *qemuProtocol) Read(buf []byte) int {
 	return int(binary.BigEndian.Uint32(buf[0:4]))
 }
 
-type bessProtocol struct {
-}
+type bessProtocol struct{}
 
 func (s *bessProtocol) Stream() bool {
 	return false
 }
 
-type vfkitProtocol struct {
-}
+type vfkitProtocol struct{}
 
 func (s *vfkitProtocol) Stream() bool {
 	return false

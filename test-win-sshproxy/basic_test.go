@@ -70,7 +70,6 @@ var _ = Describe("connectivity", func() {
 
 			g.Expect(err).ShouldNot(HaveOccurred())
 			g.Expect(string(reply)).To(Equal("pong"))
-
 		}).Should(Succeed())
 	})
 
