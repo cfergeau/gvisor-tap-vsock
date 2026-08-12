@@ -8,8 +8,10 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-const maxRetries = 60
-const initialBackoff = 100 * time.Millisecond
+const (
+	maxRetries     = 60
+	initialBackoff = 100 * time.Millisecond
+)
 
 func Retry[T comparable](ctx context.Context, retryFunc func() (T, error), retryMsg string) (T, error) {
 	var (
