@@ -3,6 +3,7 @@ package dns
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -387,12 +388,12 @@ func (s *Server) Mux() http.Handler {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-		if req.Name == "" {
-			http.Error(w, "name is required", http.StatusBadRequest)
-			return
-		}
-		if !s.removeZone(req.Name) {
-			http.Error(w, "zone not found", http.StatusNotFound)
+		if err := s.removeZone(req.Name); err != nil {
+			if errors.Is(err, errZoneNotFound) {
+				http.Error(w, err.Error(), http.StatusNotFound)
+			} else {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+			}
 			return
 		}
 		w.WriteHeader(http.StatusOK)
@@ -409,7 +410,11 @@ func (s *Server) Mux() http.Handler {
 			return
 		}
 		if err := s.removeRecord(req); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			if errors.Is(err, errRecordNotFound) || errors.Is(err, errZoneNotFound) {
+				http.Error(w, err.Error(), http.StatusNotFound)
+			} else {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+			}
 			return
 		}
 		w.WriteHeader(http.StatusOK)
@@ -482,16 +487,23 @@ func (s *Server) addZone(req types.Zone) error {
 	return nil
 }
 
-func (s *Server) removeZone(name string) bool {
+var errRecordNotFound = fmt.Errorf("record not found")
+var errZoneNotFound = fmt.Errorf("zone not found")
+
+func (s *Server) removeZone(name string) error {
+	if name == "" {
+		return fmt.Errorf("name is required")
+	}
+
 	s.handler.zonesLock.Lock()
 	defer s.handler.zonesLock.Unlock()
 	for i, zone := range s.handler.zones {
 		if zone.Name == name {
 			s.handler.zones = append(s.handler.zones[:i], s.handler.zones[i+1:]...)
-			return true
+			return nil
 		}
 	}
-	return false
+	return errZoneNotFound
 }
 
 // removeRecordRequest is the JSON body for /remove/record.
@@ -534,7 +546,7 @@ func (s *Server) removeRecord(req removeRecordRequest) error {
 			s.handler.zones[i] = z
 			return nil
 		}
-		return fmt.Errorf("record not found")
+		return errRecordNotFound
 	}
-	return fmt.Errorf("zone not found")
+	return errZoneNotFound
 }
