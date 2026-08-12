@@ -1,15 +1,14 @@
 package e2eutils
 
 import (
-	"os"
-	"path/filepath"
-	"strings"
-
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
+	"os"
+	"path/filepath"
 	"runtime"
+	"strings"
 
 	"github.com/opencontainers/go-digest"
 

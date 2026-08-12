@@ -53,7 +53,6 @@ func moduleVersion() string {
 			// `git describe` will only be the abbreviated commit hash in this case:
 			// 2c897d90
 			return fmt.Sprintf("git%s", gitVersion)
-
 		}
 		return gitVersion
 	// moduleVersionFromBuildInfo() will be set when using `go install`

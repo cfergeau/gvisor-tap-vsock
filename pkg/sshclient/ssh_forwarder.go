@@ -37,8 +37,7 @@ type SSHDialer interface {
 	DialContextTCP(ctx context.Context, addr string) (net.Conn, error)
 }
 
-type genericTCPDialer struct {
-}
+type genericTCPDialer struct{}
 
 var defaultTCPDialer genericTCPDialer
 

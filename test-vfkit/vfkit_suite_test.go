@@ -215,6 +215,7 @@ func scp(src, dst string) error {
 	sshCmd.Stdout = os.Stdout
 	return sshCmd.Run()
 }
+
 func scpToVM(src, dst string) error {
 	return scp(src, fmt.Sprintf("%s@127.0.0.1:%s", ignitionUser, dst))
 }

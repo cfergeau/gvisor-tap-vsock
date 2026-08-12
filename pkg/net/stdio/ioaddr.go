@@ -7,6 +7,7 @@ type IoAddr struct {
 func (a IoAddr) Network() string {
 	return "stdio"
 }
+
 func (a IoAddr) String() string {
 	return a.path
 }
