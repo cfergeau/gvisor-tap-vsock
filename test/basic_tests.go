@@ -4,7 +4,6 @@ import (
 	"context"
 	"net"
 	"net/http"
-	"runtime"
 
 	gvproxyclient "github.com/containers/gvisor-tap-vsock/pkg/client"
 
@@ -35,15 +34,9 @@ func BasicConnectivityTests(props BasicTestProps) {
 	})
 
 	ginkgo.It("should configure dns settings", func() {
-		if runtime.GOOS == "windows" {
-			out, err := props.SSHExec("resolvectl status")
-			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-			gomega.Expect(string(out)).To(gomega.ContainSubstring("Current DNS Server: 192.168.127.1"))
-		} else {
-			out, err := props.SSHExec("cat /etc/resolv.conf")
-			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-			gomega.Expect(string(out)).To(gomega.ContainSubstring("nameserver 192.168.127.1"))
-		}
+		out, err := props.SSHExec("cat /etc/resolv.conf")
+		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+		gomega.Expect(string(out)).To(gomega.ContainSubstring("nameserver 192.168.127.1"))
 	})
 
 	ginkgo.It("should ping the tap device", func() {
@@ -73,7 +66,6 @@ func BasicDHCPTests(props BasicTestProps) {
 		gomega.Expect(leases).Should(gomega.HaveKeyWithValue("192.168.127.1", "5a:94:ef:e4:0c:dd"))
 		gomega.Expect(leases).Should(gomega.HaveKeyWithValue("192.168.127.2", "5a:94:ef:e4:0c:ee"))
 	})
-
 }
 
 func BasicDNSTests(props BasicTestProps) {
