@@ -140,30 +140,24 @@ func (h *SuiteHelper) SSHCommand(cmd ...string) *exec.Cmd {
 		fmt.Sprintf("%s@127.0.0.1", h.Cfg.IgnitionUser), "--", strings.Join(cmd, " ")) // #nosec G204
 }
 
-func (h *SuiteHelper) SCP(src, dst string) error {
+func (h *SuiteHelper) scp(src, dst string) error {
 	sshCmd := exec.Command("scp",
 		"-o", "UserKnownHostsFile=/dev/null",
 		"-o", "StrictHostKeyChecking=no",
 		"-o", "IdentitiesOnly=yes",
 		"-i", h.PrivateKeyFile,
 		"-P", strconv.Itoa(h.Cfg.SSHPort),
-		src,
-		fmt.Sprintf("%s@127.0.0.1:%s", h.Cfg.IgnitionUser, dst)) // #nosec G204
+		src, dst) // #nosec G204
 	sshCmd.Stderr = os.Stderr
 	sshCmd.Stdout = os.Stdout
 	return sshCmd.Run()
 }
 
+func (h *SuiteHelper) SCPToVM(src, dst string) error {
+	return h.scp(src, fmt.Sprintf("%s@127.0.0.1:%s", h.Cfg.IgnitionUser, dst))
+
+}
+
 func (h *SuiteHelper) SCPFromVM(src, dst string) error {
-	sshCmd := exec.Command("scp",
-		"-o", "UserKnownHostsFile=/dev/null",
-		"-o", "StrictHostKeyChecking=no",
-		"-o", "IdentitiesOnly=yes",
-		"-i", h.PrivateKeyFile,
-		"-P", strconv.Itoa(h.Cfg.SSHPort),
-		fmt.Sprintf("%s@127.0.0.1:%s", h.Cfg.IgnitionUser, src),
-		dst) // #nosec G204
-	sshCmd.Stderr = os.Stderr
-	sshCmd.Stdout = os.Stdout
-	return sshCmd.Run()
+	return h.scp(fmt.Sprintf("%s@127.0.0.1:%s", h.Cfg.IgnitionUser, src), dst)
 }

@@ -86,14 +86,6 @@ func init() {
 	helper.InitFlags()
 }
 
-func scpToVM(src, dst string) error {
-	return helper.SCP(src, dst)
-}
-
-func scpFromVM(src, dst string) error {
-	return helper.SCPFromVM(src, dst)
-}
-
 func cleanup() {
 	_ = os.Remove(efiStore)
 	_ = os.Remove(sock)
