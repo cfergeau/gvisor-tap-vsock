@@ -64,7 +64,7 @@ var _ = ginkgo.Describe("upload and download with vfkit", func() {
 			srcPath := file.Name()
 			dstPath := filepath.Join(dstDir, path.Base(srcPath))
 
-			err = scpToVM(srcPath, dstDir)
+			err = helper.SCPToVM(srcPath, dstDir)
 			gomega.Expect(err).NotTo(gomega.HaveOccurred())
 
 			out, err := helper.SSHExec(fmt.Sprintf("sha256sum %s | awk '{print $1}'", dstPath))
@@ -82,7 +82,7 @@ var _ = ginkgo.Describe("upload and download with vfkit", func() {
 		dlTmpDir, err := os.MkdirTemp("", "vfkit-dl")
 		gomega.Expect(err).NotTo(gomega.HaveOccurred())
 		for filename := range sumMap {
-			err = scpFromVM(filename, dlTmpDir)
+			err = helper.SCPFromVM(filename, dlTmpDir)
 			gomega.Expect(err).NotTo(gomega.HaveOccurred())
 		}
 
