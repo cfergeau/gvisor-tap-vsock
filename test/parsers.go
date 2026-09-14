@@ -47,10 +47,10 @@ type DNSQueryTimes struct {
 
 var digQueryTimeRegex = regexp.MustCompile(`Query time: (\d+) msec`)
 
-func ParseDNSQueryTimes(output string) (*DNSQueryTimes, error) {
+func ParseDNSQueryTimes(output string, expected int) (*DNSQueryTimes, error) {
 	matches := digQueryTimeRegex.FindAllStringSubmatch(output, -1)
-	if len(matches) == 0 {
-		return nil, fmt.Errorf("no query times found in dig output")
+	if len(matches) != expected {
+		return nil, fmt.Errorf("expected %d query times in dig output, found %d", expected, len(matches))
 	}
 	result := &DNSQueryTimes{}
 	var total int

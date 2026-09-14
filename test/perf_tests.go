@@ -255,7 +255,7 @@ func PerfDNSTests(props BasicTestProps) {
 		out, err := props.SSHExec("for i in $(seq 1 100); do dig +noall +stats @192.168.127.1 host.containers.internal 2>&1; done")
 		gomega.Expect(err).NotTo(gomega.HaveOccurred())
 
-		times, err := ParseDNSQueryTimes(string(out))
+		times, err := ParseDNSQueryTimes(string(out), 100)
 		gomega.Expect(err).NotTo(gomega.HaveOccurred())
 
 		sort.Ints(times.Times)
@@ -273,7 +273,7 @@ func PerfDNSTests(props BasicTestProps) {
 		out, err := props.SSHExec("for i in $(seq 1 10); do dig +noall +stats @192.168.127.1 redhat.com 2>&1; done")
 		gomega.Expect(err).NotTo(gomega.HaveOccurred())
 
-		times, err := ParseDNSQueryTimes(string(out))
+		times, err := ParseDNSQueryTimes(string(out), 10)
 		gomega.Expect(err).NotTo(gomega.HaveOccurred())
 
 		sort.Ints(times.Times)
