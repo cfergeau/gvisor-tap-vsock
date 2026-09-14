@@ -121,7 +121,7 @@ func (h *SuiteHelper) SetupSuite() {
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	if h.Cfg.DeployTestCompanion {
-		err = h.SCP(filepath.Join(h.BinDir, "test-companion"), "/tmp/test-companion")
+		err = h.SCPToVM(filepath.Join(h.BinDir, "test-companion"), "/tmp/test-companion")
 		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 		cmd := h.SSHCommand("sudo /tmp/test-companion")
