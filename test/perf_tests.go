@@ -332,7 +332,6 @@ func PerfIperf3ParallelTests(props BasicTestProps) {
 	})
 
 	for _, streams := range []int{1, 4, 8} {
-		streams := streams
 		ginkgo.It(fmt.Sprintf("should measure TCP throughput with %d parallel streams", streams), func() {
 			iperf3Path := iperf3Executable()
 			server := exec.Command(iperf3Path, "-s", "-1") // #nosec G204
@@ -358,7 +357,6 @@ func PerfIperf3PayloadTests(props BasicTestProps) {
 	})
 
 	for _, length := range []int{128, 512, 1460, 9216} {
-		length := length
 		ginkgo.It(fmt.Sprintf("should measure UDP throughput with %d byte payload", length), func() {
 			iperf3Path := iperf3Executable()
 			server := exec.Command(iperf3Path, "-s", "-1") // #nosec G204
