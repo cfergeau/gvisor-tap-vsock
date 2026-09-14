@@ -23,6 +23,16 @@ func iperf3Executable() string {
 	return ""
 }
 
+func startIperf3Server() *exec.Cmd {
+	server := exec.Command(iperf3Executable(), "-s", "-1") // #nosec G204
+	gomega.Expect(server.Start()).To(gomega.Succeed())
+	ginkgo.DeferCleanup(func() {
+		_ = server.Process.Kill()
+		_ = server.Wait()
+	})
+	return server
+}
+
 var iperf3InstallOnce sync.Once
 
 func ensureIperf3InVM(props BasicTestProps) {
@@ -39,10 +49,7 @@ func PerfIperf3Tests(props BasicTestProps) {
 	})
 
 	ginkgo.It("should measure TCP throughput from VM to host", func() {
-		iperf3Path := iperf3Executable()
-		server := exec.Command(iperf3Path, "-s", "-1") // #nosec G204
-		gomega.Expect(server.Start()).To(gomega.Succeed())
-		ginkgo.DeferCleanup(func() { _ = server.Process.Kill() })
+		startIperf3Server()
 
 		out, err := props.SSHExec("/usr/bin/iperf3 -c host.containers.internal --json")
 		gomega.Expect(err).NotTo(gomega.HaveOccurred())
@@ -55,10 +62,7 @@ func PerfIperf3Tests(props BasicTestProps) {
 	})
 
 	ginkgo.It("should measure TCP throughput from host to VM", func() {
-		iperf3Path := iperf3Executable()
-		server := exec.Command(iperf3Path, "-s", "-1") // #nosec G204
-		gomega.Expect(server.Start()).To(gomega.Succeed())
-		ginkgo.DeferCleanup(func() { _ = server.Process.Kill() })
+		startIperf3Server()
 
 		out, err := props.SSHExec("/usr/bin/iperf3 -c host.containers.internal -R --json")
 		gomega.Expect(err).NotTo(gomega.HaveOccurred())
@@ -71,10 +75,7 @@ func PerfIperf3Tests(props BasicTestProps) {
 	})
 
 	ginkgo.It("should measure UDP throughput from VM to host", func() {
-		iperf3Path := iperf3Executable()
-		server := exec.Command(iperf3Path, "-s", "-1") // #nosec G204
-		gomega.Expect(server.Start()).To(gomega.Succeed())
-		ginkgo.DeferCleanup(func() { _ = server.Process.Kill() })
+		startIperf3Server()
 
 		out, err := props.SSHExec("/usr/bin/iperf3 -c host.containers.internal -u --json")
 		gomega.Expect(err).NotTo(gomega.HaveOccurred())
@@ -87,10 +88,7 @@ func PerfIperf3Tests(props BasicTestProps) {
 	})
 
 	ginkgo.It("should measure UDP throughput from host to VM", func() {
-		iperf3Path := iperf3Executable()
-		server := exec.Command(iperf3Path, "-s", "-1") // #nosec G204
-		gomega.Expect(server.Start()).To(gomega.Succeed())
-		ginkgo.DeferCleanup(func() { _ = server.Process.Kill() })
+		startIperf3Server()
 
 		out, err := props.SSHExec("/usr/bin/iperf3 -c host.containers.internal -R -u --json")
 		gomega.Expect(err).NotTo(gomega.HaveOccurred())
@@ -333,10 +331,7 @@ func PerfIperf3ParallelTests(props BasicTestProps) {
 
 	for _, streams := range []int{1, 4, 8} {
 		ginkgo.It(fmt.Sprintf("should measure TCP throughput with %d parallel streams", streams), func() {
-			iperf3Path := iperf3Executable()
-			server := exec.Command(iperf3Path, "-s", "-1") // #nosec G204
-			gomega.Expect(server.Start()).To(gomega.Succeed())
-			ginkgo.DeferCleanup(func() { _ = server.Process.Kill() })
+			startIperf3Server()
 
 			out, err := props.SSHExec(fmt.Sprintf("/usr/bin/iperf3 -c host.containers.internal -P %d --json", streams))
 			gomega.Expect(err).NotTo(gomega.HaveOccurred())
@@ -358,10 +353,7 @@ func PerfIperf3PayloadTests(props BasicTestProps) {
 
 	for _, length := range []int{128, 512, 1460, 9216} {
 		ginkgo.It(fmt.Sprintf("should measure UDP throughput with %d byte payload", length), func() {
-			iperf3Path := iperf3Executable()
-			server := exec.Command(iperf3Path, "-s", "-1") // #nosec G204
-			gomega.Expect(server.Start()).To(gomega.Succeed())
-			ginkgo.DeferCleanup(func() { _ = server.Process.Kill() })
+			startIperf3Server()
 
 			out, err := props.SSHExec(fmt.Sprintf("/usr/bin/iperf3 -c host.containers.internal -u --length %d --json", length))
 			gomega.Expect(err).NotTo(gomega.HaveOccurred())
