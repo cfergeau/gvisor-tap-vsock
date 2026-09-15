@@ -105,6 +105,7 @@ func startIperf3ServerInVM(props BasicTestProps) {
 	_, _ = props.SSHExec("kill $(cat /tmp/iperf3.pid) 2>/dev/null; sleep 0.5")
 	_, err := props.SSHExec("/usr/bin/iperf3 --server --daemon --pidfile /tmp/iperf3.pid")
 	gomega.Expect(err).NotTo(gomega.HaveOccurred())
+	ginkgo.DeferCleanup(func() { _, _ = props.SSHExec("kill $(cat /tmp/iperf3.pid) 2>/dev/null") })
 }
 
 func exposeTCPAndUDP(client interface {
@@ -145,7 +146,6 @@ func PerfIperf3PortForwardedTests(props BasicTestProps) {
 		})
 
 		startIperf3ServerInVM(props)
-		ginkgo.DeferCleanup(func() { _, _ = props.SSHExec("kill $(cat /tmp/iperf3.pid) 2>/dev/null") })
 
 		iperf3Path := iperf3Executable()
 		out, err := exec.Command(iperf3Path, "-c", "127.0.0.1", "--json").Output() // #nosec G204
@@ -170,7 +170,6 @@ func PerfIperf3PortForwardedTests(props BasicTestProps) {
 		})
 
 		startIperf3ServerInVM(props)
-		ginkgo.DeferCleanup(func() { _, _ = props.SSHExec("kill $(cat /tmp/iperf3.pid) 2>/dev/null") })
 
 		iperf3Path := iperf3Executable()
 		out, err := exec.Command(iperf3Path, "-c", "127.0.0.1", "-R", "--json").Output() // #nosec G204
@@ -189,7 +188,6 @@ func PerfIperf3PortForwardedTests(props BasicTestProps) {
 		ginkgo.DeferCleanup(func() { unexposeTCPAndUDP(client, "127.0.0.1:5201") })
 
 		startIperf3ServerInVM(props)
-		ginkgo.DeferCleanup(func() { _, _ = props.SSHExec("kill $(cat /tmp/iperf3.pid) 2>/dev/null") })
 
 		iperf3Path := iperf3Executable()
 		out, err := exec.Command(iperf3Path, "-c", "127.0.0.1", "-u", "--length", "9216", "--json").Output() // #nosec G204
@@ -208,7 +206,6 @@ func PerfIperf3PortForwardedTests(props BasicTestProps) {
 		ginkgo.DeferCleanup(func() { unexposeTCPAndUDP(client, "127.0.0.1:5201") })
 
 		startIperf3ServerInVM(props)
-		ginkgo.DeferCleanup(func() { _, _ = props.SSHExec("kill $(cat /tmp/iperf3.pid) 2>/dev/null") })
 
 		iperf3Path := iperf3Executable()
 		out, err := exec.Command(iperf3Path, "-c", "127.0.0.1", "-u", "-R", "--length", "9216", "--json").Output() // #nosec G204
