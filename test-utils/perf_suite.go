@@ -64,7 +64,11 @@ func (h *SuiteHelper) gvproxyCmd() *exec.Cmd {
 	cmd.AddEndpoint(fmt.Sprintf("unix://%s", h.Cfg.Sock))
 	cmd.SSHPort = h.Cfg.SSHPort
 	h.Cfg.ConfigureGvproxy(&cmd)
-	return cmd.Cmd(filepath.Join(h.BinDir, "gvproxy"))
+	goCmd := cmd.Cmd(filepath.Join(h.BinDir, "gvproxy"))
+	goCmd.Stderr = os.Stderr
+	goCmd.Stdout = os.Stdout
+
+	return goCmd
 }
 
 func (h *SuiteHelper) SetupSuite() {
@@ -93,8 +97,6 @@ func (h *SuiteHelper) SetupSuite() {
 	if h.Cfg.ModifyGvproxyCmd != nil {
 		h.Host = h.Cfg.ModifyGvproxyCmd(h.Host)
 	}
-	h.Host.Stderr = os.Stderr
-	h.Host.Stdout = os.Stdout
 	gomega.Expect(h.Host.Start()).Should(gomega.Succeed())
 
 	waitSockets := append([]string{h.Cfg.Sock}, h.Cfg.ExtraGvproxySockets...)
