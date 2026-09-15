@@ -5,7 +5,6 @@ package e2e_performance_vfkit
 import (
 	"os"
 	"os/exec"
-	"path/filepath"
 	"testing"
 
 	"github.com/containers/gvisor-tap-vsock/pkg/types"
@@ -76,8 +75,6 @@ func cleanup() {
 	_ = os.Remove(efiStore)
 	_ = os.Remove(sock)
 	_ = os.Remove(vfkitSock)
-	socketPath := filepath.Join(os.TempDir(), "ignition-perf-vfkit.sock")
-	_ = os.Remove(socketPath)
 }
 
 var _ = ginkgo.BeforeSuite(func() {
