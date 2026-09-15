@@ -90,8 +90,6 @@ func cleanup() {
 	_ = os.Remove(efiStore)
 	_ = os.Remove(sock)
 	_ = os.Remove(vfkitSock)
-	socketPath := filepath.Join(os.TempDir(), "ignition.sock")
-	_ = os.Remove(socketPath)
 }
 
 var _ = ginkgo.BeforeSuite(func() {
