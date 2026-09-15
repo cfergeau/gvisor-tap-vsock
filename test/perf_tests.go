@@ -127,6 +127,16 @@ func unexposeTCPAndUDP(client interface {
 	_ = client.Unexpose(&types.UnexposeRequest{Local: local, Protocol: types.UDP})
 }
 
+func runIperf3Command(args ...string) (*Iperf3Result, error) {
+	iperf3Path := iperf3Executable()
+	out, err := exec.Command(iperf3Path, args...).Output() // #nosec G204
+	if err != nil {
+		return nil, err
+	}
+
+	return ParseIperf3JSON(out)
+}
+
 func PerfIperf3PortForwardedTests(props BasicTestProps) {
 	ginkgo.BeforeEach(func() {
 		gomega.Expect(iperf3Executable()).NotTo(gomega.BeEmpty(), "iperf3 must be installed on the host")
@@ -147,11 +157,7 @@ func PerfIperf3PortForwardedTests(props BasicTestProps) {
 
 		startIperf3ServerInVM(props)
 
-		iperf3Path := iperf3Executable()
-		out, err := exec.Command(iperf3Path, "-c", "127.0.0.1", "--json").Output() // #nosec G204
-		gomega.Expect(err).NotTo(gomega.HaveOccurred())
-
-		result, err := ParseIperf3JSON(out)
+		result, err := runIperf3Command("-c", "127.0.0.1", "--json")
 		gomega.Expect(err).NotTo(gomega.HaveOccurred())
 
 		ginkgo.AddReportEntry("tcp_fwd_host_to_vm_sent", FormatMbps(result.End.SumSent.BitsPerSecond))
@@ -171,11 +177,7 @@ func PerfIperf3PortForwardedTests(props BasicTestProps) {
 
 		startIperf3ServerInVM(props)
 
-		iperf3Path := iperf3Executable()
-		out, err := exec.Command(iperf3Path, "-c", "127.0.0.1", "-R", "--json").Output() // #nosec G204
-		gomega.Expect(err).NotTo(gomega.HaveOccurred())
-
-		result, err := ParseIperf3JSON(out)
+		result, err := runIperf3Command("-c", "127.0.0.1", "-R", "--json")
 		gomega.Expect(err).NotTo(gomega.HaveOccurred())
 
 		ginkgo.AddReportEntry("tcp_fwd_vm_to_host_sent", FormatMbps(result.End.SumSent.BitsPerSecond))
@@ -189,11 +191,7 @@ func PerfIperf3PortForwardedTests(props BasicTestProps) {
 
 		startIperf3ServerInVM(props)
 
-		iperf3Path := iperf3Executable()
-		out, err := exec.Command(iperf3Path, "-c", "127.0.0.1", "-u", "--length", "9216", "--json").Output() // #nosec G204
-		gomega.Expect(err).NotTo(gomega.HaveOccurred())
-
-		result, err := ParseIperf3JSON(out)
+		result, err := runIperf3Command("-c", "127.0.0.1", "-u", "--length", "9216", "--json")
 		gomega.Expect(err).NotTo(gomega.HaveOccurred())
 
 		ginkgo.AddReportEntry("udp_fwd_host_to_vm_sent", FormatMbps(result.End.SumSent.BitsPerSecond))
@@ -207,11 +205,7 @@ func PerfIperf3PortForwardedTests(props BasicTestProps) {
 
 		startIperf3ServerInVM(props)
 
-		iperf3Path := iperf3Executable()
-		out, err := exec.Command(iperf3Path, "-c", "127.0.0.1", "-u", "-R", "--length", "9216", "--json").Output() // #nosec G204
-		gomega.Expect(err).NotTo(gomega.HaveOccurred())
-
-		result, err := ParseIperf3JSON(out)
+		result, err := runIperf3Command("-c", "127.0.0.1", "-u", "-R", "--length", "9216", "--json")
 		gomega.Expect(err).NotTo(gomega.HaveOccurred())
 
 		ginkgo.AddReportEntry("udp_fwd_vm_to_host_sent", FormatMbps(result.End.SumSent.BitsPerSecond))
