@@ -17,6 +17,12 @@ linters:
       - legacy
       - std-error-handling
   settings:
+    gocritic:
+      enable-all: true
+      disabled-checks:
+        - paramTypeCombine
+        - importShadow
+        - appendCombine
     revive:
       rules:
       - name: var-naming
