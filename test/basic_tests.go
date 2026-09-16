@@ -276,7 +276,7 @@ func BasicDNSTests(props BasicTestProps) {
 		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 		gomega.Expect(string(out)).To(gomega.ContainSubstring("Address: 192.168.127.254"))
 
-		err = client.RemoveDNSRecord("removerecord.internal.", &types.Record{Name: "drop", IP: net.ParseIP("192.168.127.254")})
+		err = client.RemoveDNSRecord(&types.Zone{Name: "removerecord.internal.", Records: []types.Record{{Name: "drop", IP: net.ParseIP("192.168.127.254")}}})
 		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 		out, err = props.SSHExec("nslookup keep.removerecord.internal")

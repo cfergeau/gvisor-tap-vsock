@@ -305,7 +305,7 @@ var _ = ginkgo.Describe("dns add test", func() {
 				},
 			}
 			server, _ = New(nil, nil, []types.Zone{zone})
-			err := server.removeRecord(removeRecordRequest{Name: "internal.", Record: types.Record{Name: "host1", IP: net.ParseIP("192.168.0.2")}})
+			err := server.removeRecord(types.Zone{Name: "internal.", Records: []types.Record{{Name: "host1", IP: net.ParseIP("192.168.0.2")}}})
 			gomega.Expect(err).To(gomega.BeNil())
 			gomega.Expect(server.handler.zones).To(gomega.Equal([]types.Zone{{
 				Name: "internal.",
@@ -325,10 +325,30 @@ var _ = ginkgo.Describe("dns add test", func() {
 				},
 			}
 			server, _ = New(nil, nil, []types.Zone{zone})
-			err := server.removeRecord(removeRecordRequest{Name: "internal.", Record: types.Record{Name: "host"}})
+			err := server.removeRecord(types.Zone{Name: "internal.", Records: []types.Record{{Name: "host"}}})
 			gomega.Expect(err).To(gomega.BeNil())
 			gomega.Expect(server.handler.zones[0].Records).To(gomega.Equal([]types.Record{
 				{Name: "other", IP: net.ParseIP("192.168.0.4")},
+			}))
+		})
+
+		ginkgo.It("should remove multiple records in a single call", func() {
+			zone := types.Zone{
+				Name: "internal.",
+				Records: []types.Record{
+					{Name: "host1", IP: net.ParseIP("192.168.0.2")},
+					{Name: "host2", IP: net.ParseIP("192.168.0.3")},
+					{Name: "host3", IP: net.ParseIP("192.168.0.4")},
+				},
+			}
+			server, _ = New(nil, nil, []types.Zone{zone})
+			err := server.removeRecord(types.Zone{Name: "internal.", Records: []types.Record{
+				{Name: "host1", IP: net.ParseIP("192.168.0.2")},
+				{Name: "host3", IP: net.ParseIP("192.168.0.4")},
+			}})
+			gomega.Expect(err).To(gomega.BeNil())
+			gomega.Expect(server.handler.zones[0].Records).To(gomega.Equal([]types.Record{
+				{Name: "host2", IP: net.ParseIP("192.168.0.3")},
 			}))
 		})
 
@@ -337,7 +357,7 @@ var _ = ginkgo.Describe("dns add test", func() {
 				Name:    "internal.",
 				Records: []types.Record{{Name: "host", IP: net.ParseIP("192.168.0.2")}},
 			}})
-			err := server.removeRecord(removeRecordRequest{Name: "other.", Record: types.Record{Name: "host", IP: net.ParseIP("192.168.0.2")}})
+			err := server.removeRecord(types.Zone{Name: "other.", Records: []types.Record{{Name: "host", IP: net.ParseIP("192.168.0.2")}}})
 			gomega.Expect(err).To(gomega.MatchError("zone not found"))
 			gomega.Expect(server.handler.zones[0].Records).To(gomega.HaveLen(1))
 		})
@@ -348,21 +368,54 @@ var _ = ginkgo.Describe("dns add test", func() {
 				Records: []types.Record{{Name: "host", IP: net.ParseIP("192.168.0.2")}},
 			}
 			server, _ = New(nil, nil, []types.Zone{zone})
-			err := server.removeRecord(removeRecordRequest{Name: "internal.", Record: types.Record{Name: "host", IP: net.ParseIP("192.168.0.99")}})
-			gomega.Expect(err).To(gomega.MatchError("record not found"))
+			err := server.removeRecord(types.Zone{Name: "internal.", Records: []types.Record{{Name: "host", IP: net.ParseIP("192.168.0.99")}}})
+			gomega.Expect(err).To(gomega.MatchError(gomega.ContainSubstring("record not found")))
 			gomega.Expect(server.handler.zones[0].Records).To(gomega.HaveLen(1))
 		})
 
 		ginkgo.It("removeRecord returns error when zone name is empty", func() {
 			server, _ = New(nil, nil, []types.Zone{})
-			err := server.removeRecord(removeRecordRequest{Name: "", Record: types.Record{Name: "host"}})
+			err := server.removeRecord(types.Zone{Name: "", Records: []types.Record{{Name: "host"}}})
 			gomega.Expect(err).To(gomega.MatchError("name is required"))
+		})
+
+		ginkgo.It("removeRecord returns error when no records are given", func() {
+			server, _ = New(nil, nil, []types.Zone{{Name: "internal.", Records: nil}})
+			err := server.removeRecord(types.Zone{Name: "internal."})
+			gomega.Expect(err).To(gomega.MatchError("at least one record is required"))
 		})
 
 		ginkgo.It("removeRecord returns error when record name is empty", func() {
 			server, _ = New(nil, nil, []types.Zone{{Name: "internal.", Records: nil}})
-			err := server.removeRecord(removeRecordRequest{Name: "internal.", Record: types.Record{Name: ""}})
+			err := server.removeRecord(types.Zone{Name: "internal.", Records: []types.Record{{Name: ""}}})
 			gomega.Expect(err).To(gomega.MatchError("record name is required"))
+		})
+
+		ginkgo.It("removeRecord should not remove any records when some don't exist (atomic)", func() {
+			zone := types.Zone{
+				Name: "internal.",
+				Records: []types.Record{
+					{Name: "host1", IP: net.ParseIP("192.168.0.2")},
+					{Name: "host2", IP: net.ParseIP("192.168.0.3")},
+					{Name: "host3", IP: net.ParseIP("192.168.0.4")},
+				},
+			}
+			server, _ = New(nil, nil, []types.Zone{zone})
+			// Try to remove host1 (exists) and host99 (doesn't exist)
+			err := server.removeRecord(types.Zone{Name: "internal.", Records: []types.Record{
+				{Name: "host1", IP: net.ParseIP("192.168.0.2")},
+				{Name: "host99", IP: net.ParseIP("192.168.0.99")},
+			}})
+			// Should error
+			gomega.Expect(err).To(gomega.MatchError(gomega.ContainSubstring("record not found")))
+			gomega.Expect(err).To(gomega.MatchError(gomega.ContainSubstring("host99")))
+			// host1 should NOT have been removed (all-or-nothing)
+			gomega.Expect(server.handler.zones[0].Records).To(gomega.HaveLen(3))
+			gomega.Expect(server.handler.zones[0].Records).To(gomega.Equal([]types.Record{
+				{Name: "host1", IP: net.ParseIP("192.168.0.2")},
+				{Name: "host2", IP: net.ParseIP("192.168.0.3")},
+				{Name: "host3", IP: net.ParseIP("192.168.0.4")},
+			}))
 		})
 	})
 
@@ -376,9 +429,9 @@ var _ = ginkgo.Describe("dns add test", func() {
 				},
 			}
 			server, _ = New(nil, nil, []types.Zone{zone})
-			body, _ := json.Marshal(removeRecordRequest{
-				Name:   "internal.",
-				Record: types.Record{Name: "host", IP: net.ParseIP("192.168.0.2")},
+			body, _ := json.Marshal(types.Zone{
+				Name:    "internal.",
+				Records: []types.Record{{Name: "host", IP: net.ParseIP("192.168.0.2")}},
 			})
 			req := httptest.NewRequest(http.MethodPost, "/remove/record", bytes.NewReader(body))
 			req.Header.Set("Content-Type", "application/json")
@@ -395,9 +448,9 @@ var _ = ginkgo.Describe("dns add test", func() {
 				Name:    "internal.",
 				Records: []types.Record{{Name: "host", IP: net.ParseIP("192.168.0.2")}},
 			}})
-			body, _ := json.Marshal(removeRecordRequest{
-				Name:   "other.",
-				Record: types.Record{Name: "host", IP: net.ParseIP("192.168.0.2")},
+			body, _ := json.Marshal(types.Zone{
+				Name:    "other.",
+				Records: []types.Record{{Name: "host", IP: net.ParseIP("192.168.0.2")}},
 			})
 			req := httptest.NewRequest(http.MethodPost, "/remove/record", bytes.NewReader(body))
 			req.Header.Set("Content-Type", "application/json")
@@ -412,9 +465,9 @@ var _ = ginkgo.Describe("dns add test", func() {
 				Name:    "internal.",
 				Records: []types.Record{{Name: "host", IP: net.ParseIP("192.168.0.2")}},
 			}})
-			body, _ := json.Marshal(removeRecordRequest{
-				Name:   "internal.",
-				Record: types.Record{Name: "missing", IP: net.ParseIP("192.168.0.99")},
+			body, _ := json.Marshal(types.Zone{
+				Name:    "internal.",
+				Records: []types.Record{{Name: "missing", IP: net.ParseIP("192.168.0.99")}},
 			})
 			req := httptest.NewRequest(http.MethodPost, "/remove/record", bytes.NewReader(body))
 			req.Header.Set("Content-Type", "application/json")
@@ -426,7 +479,7 @@ var _ = ginkgo.Describe("dns add test", func() {
 
 		ginkgo.It("POST /remove/record with empty zone name returns 400", func() {
 			server, _ = New(nil, nil, []types.Zone{})
-			body, _ := json.Marshal(removeRecordRequest{Name: "", Record: types.Record{Name: "host"}})
+			body, _ := json.Marshal(types.Zone{Name: "", Records: []types.Record{{Name: "host"}}})
 			req := httptest.NewRequest(http.MethodPost, "/remove/record", bytes.NewReader(body))
 			req.Header.Set("Content-Type", "application/json")
 			rec := httptest.NewRecorder()
@@ -436,7 +489,7 @@ var _ = ginkgo.Describe("dns add test", func() {
 
 		ginkgo.It("POST /remove/record with empty record name returns 400", func() {
 			server, _ = New(nil, nil, []types.Zone{})
-			body, _ := json.Marshal(removeRecordRequest{Name: "internal.", Record: types.Record{Name: ""}})
+			body, _ := json.Marshal(types.Zone{Name: "internal.", Records: []types.Record{{Name: ""}}})
 			req := httptest.NewRequest(http.MethodPost, "/remove/record", bytes.NewReader(body))
 			req.Header.Set("Content-Type", "application/json")
 			rec := httptest.NewRecorder()

@@ -170,21 +170,15 @@ func (c *Client) RemoveDNS(req *types.Zone) error {
 	return c.dnsPost("/services/dns/remove", req)
 }
 
-// removeDNSRecordRequest is the JSON body for /services/dns/remove/record
-type removeDNSRecordRequest struct {
-	Name   string       `json:"name"`
-	Record types.Record `json:"record"`
-}
-
-// RemoveDNSRecord removes a record from a DNS zone
+// RemoveDNSRecord removes one or more records from a DNS zone. req.Name is the zone name,
+// and req.Records lists the records to remove from it; other fields of req are ignored.
 //
 // Request:
 // POST /services/dns/remove/record
-// {"name":"dynamic.internal.","record":{"Name":"test","IP":"192.168.127.254"}}
+// {"Name":"dynamic.internal.","Records":[{"Name":"test","IP":"192.168.127.254"}]}
 // Response:
 // HTTP Status Code
-func (c *Client) RemoveDNSRecord(zoneName string, record *types.Record) error {
-	req := removeDNSRecordRequest{Name: zoneName, Record: *record}
+func (c *Client) RemoveDNSRecord(req *types.Zone) error {
 	return c.dnsPost("/services/dns/remove/record", req)
 }
 

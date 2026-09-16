@@ -402,7 +402,7 @@ func (s *Server) Mux() http.Handler {
 			http.Error(w, "post only", http.StatusBadRequest)
 			return
 		}
-		var req removeRecordRequest
+		var req types.Zone
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
@@ -504,12 +504,6 @@ func (s *Server) removeZone(name string) error {
 	return errZoneNotFound
 }
 
-// removeRecordRequest is the JSON body for /remove/record.
-type removeRecordRequest struct {
-	Name   string       `json:"name"` // zone name
-	Record types.Record `json:"record"`
-}
-
 // recordMatches returns true if r matches the target (by Name and IP when provided).
 func recordMatches(r, target types.Record) bool {
 	if r.Name != target.Name {
@@ -521,13 +515,20 @@ func recordMatches(r, target types.Record) bool {
 	return true
 }
 
-// removeRecord validates the request, removes from the zone any record matching req.Record, and returns an error for validation or not-found.
-func (s *Server) removeRecord(req removeRecordRequest) error {
+// removeRecord validates the request, removes from the zone any record matching one of req.Records,
+// and returns an error for validation or not-found. req.Name is the zone name.
+// All specified records must exist; if any record is not found, none are removed.
+func (s *Server) removeRecord(req types.Zone) error {
 	if req.Name == "" {
 		return fmt.Errorf("name is required")
 	}
-	if req.Record.Name == "" {
-		return fmt.Errorf("record name is required")
+	if len(req.Records) == 0 {
+		return fmt.Errorf("at least one record is required")
+	}
+	for _, target := range req.Records {
+		if target.Name == "" {
+			return fmt.Errorf("record name is required")
+		}
 	}
 	s.handler.zonesLock.Lock()
 	defer s.handler.zonesLock.Unlock()
@@ -535,16 +536,32 @@ func (s *Server) removeRecord(req removeRecordRequest) error {
 		if zone.Name != req.Name {
 			continue
 		}
-		z := s.handler.zones[i]
-		before := len(z.Records)
-		z.Records = slices.DeleteFunc(z.Records, func(r types.Record) bool {
-			return recordMatches(r, req.Record)
-		})
-		if len(z.Records) < before {
-			s.handler.zones[i] = z
-			return nil
+		// First pass: validate all target records exist before deleting any
+		var notFound []string
+		for _, target := range req.Records {
+			found := false
+			for _, r := range zone.Records {
+				if recordMatches(r, target) {
+					found = true
+					break
+				}
+			}
+			if !found {
+				notFound = append(notFound, target.Name)
+			}
 		}
-		return errRecordNotFound
+		if len(notFound) > 0 {
+			return fmt.Errorf("%w: %s", errRecordNotFound, strings.Join(notFound, ", "))
+		}
+		// Second pass: all records exist, safe to delete them
+		z := s.handler.zones[i]
+		for _, target := range req.Records {
+			z.Records = slices.DeleteFunc(z.Records, func(r types.Record) bool {
+				return recordMatches(r, target)
+			})
+		}
+		s.handler.zones[i] = z
+		return nil
 	}
 	return errZoneNotFound
 }
