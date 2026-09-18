@@ -243,6 +243,19 @@ var _ = ginkgo.Describe("dns add test", func() {
 			err := server.removeZone("internal.")
 			gomega.Expect(err).To(gomega.MatchError("zone not found"))
 		})
+
+		ginkgo.It("removeZone should reject removing protected zone", func() {
+			protectedZone := types.Zone{
+				Name:      "system.internal.",
+				Protected: true,
+				DefaultIP: net.ParseIP("192.168.0.1"),
+			}
+			server, _ = New(nil, nil, []types.Zone{protectedZone})
+			err := server.removeZone("system.internal.")
+			gomega.Expect(err).To(gomega.HaveOccurred())
+			gomega.Expect(err.Error()).To(gomega.ContainSubstring("cannot modify protected zone"))
+			gomega.Expect(server.handler.zones).To(gomega.HaveLen(1))
+		})
 	})
 
 	var _ = ginkgo.Describe("dns Mux /remove handler", func() {
@@ -284,6 +297,23 @@ var _ = ginkgo.Describe("dns add test", func() {
 			rec := httptest.NewRecorder()
 			server.Mux().ServeHTTP(rec, req)
 			gomega.Expect(rec.Code).To(gomega.Equal(http.StatusBadRequest))
+		})
+
+		ginkgo.It("POST /remove with protected zone returns 403", func() {
+			protectedZone := types.Zone{
+				Name:      "system.internal.",
+				Protected: true,
+				DefaultIP: net.ParseIP("192.168.0.1"),
+			}
+			server, _ = New(nil, nil, []types.Zone{protectedZone})
+			body, _ := json.Marshal(types.Zone{Name: "system.internal."})
+			req := httptest.NewRequest(http.MethodPost, "/remove", bytes.NewReader(body))
+			req.Header.Set("Content-Type", "application/json")
+			rec := httptest.NewRecorder()
+			server.Mux().ServeHTTP(rec, req)
+			gomega.Expect(rec.Code).To(gomega.Equal(http.StatusForbidden))
+			gomega.Expect(rec.Body.String()).To(gomega.ContainSubstring("cannot modify protected zone"))
+			gomega.Expect(server.handler.zones).To(gomega.HaveLen(1))
 		})
 
 		ginkgo.It("GET /remove returns 400", func() {
@@ -417,6 +447,22 @@ var _ = ginkgo.Describe("dns add test", func() {
 				{Name: "host3", IP: net.ParseIP("192.168.0.4")},
 			}))
 		})
+
+		ginkgo.It("removeRecord should reject removing records from protected zone", func() {
+			protectedZone := types.Zone{
+				Name:      "system.internal.",
+				Protected: true,
+				Records: []types.Record{
+					{Name: "host1", IP: net.ParseIP("192.168.0.2")},
+					{Name: "host2", IP: net.ParseIP("192.168.0.3")},
+				},
+			}
+			server, _ = New(nil, nil, []types.Zone{protectedZone})
+			err := server.removeRecord(types.Zone{Name: "system.internal.", Records: []types.Record{{Name: "host1", IP: net.ParseIP("192.168.0.2")}}})
+			gomega.Expect(err).To(gomega.HaveOccurred())
+			gomega.Expect(err.Error()).To(gomega.ContainSubstring("cannot modify protected zone"))
+			gomega.Expect(server.handler.zones[0].Records).To(gomega.HaveLen(2))
+		})
 	})
 
 	var _ = ginkgo.Describe("dns Mux /remove/record handler", func() {
@@ -495,6 +541,28 @@ var _ = ginkgo.Describe("dns add test", func() {
 			rec := httptest.NewRecorder()
 			server.Mux().ServeHTTP(rec, req)
 			gomega.Expect(rec.Code).To(gomega.Equal(http.StatusBadRequest))
+		})
+
+		ginkgo.It("POST /remove/record with protected zone returns 403", func() {
+			protectedZone := types.Zone{
+				Name:      "system.internal.",
+				Protected: true,
+				Records: []types.Record{
+					{Name: "host", IP: net.ParseIP("192.168.0.2")},
+				},
+			}
+			server, _ = New(nil, nil, []types.Zone{protectedZone})
+			body, _ := json.Marshal(types.Zone{
+				Name:    "system.internal.",
+				Records: []types.Record{{Name: "host", IP: net.ParseIP("192.168.0.2")}},
+			})
+			req := httptest.NewRequest(http.MethodPost, "/remove/record", bytes.NewReader(body))
+			req.Header.Set("Content-Type", "application/json")
+			rec := httptest.NewRecorder()
+			server.Mux().ServeHTTP(rec, req)
+			gomega.Expect(rec.Code).To(gomega.Equal(http.StatusForbidden))
+			gomega.Expect(rec.Body.String()).To(gomega.ContainSubstring("cannot modify protected zone"))
+			gomega.Expect(server.handler.zones[0].Records).To(gomega.HaveLen(1))
 		})
 
 		ginkgo.It("GET /remove/record returns 400", func() {
