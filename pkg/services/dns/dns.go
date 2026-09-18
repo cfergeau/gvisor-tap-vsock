@@ -497,7 +497,7 @@ func (s *Server) removeZone(name string) error {
 	defer s.handler.zonesLock.Unlock()
 	for i, zone := range s.handler.zones {
 		if zone.Name == name {
-			s.handler.zones = append(s.handler.zones[:i], s.handler.zones[i+1:]...)
+			s.handler.zones = slices.Delete(s.handler.zones, i, i+1)
 			return nil
 		}
 	}
