@@ -389,9 +389,12 @@ func (s *Server) Mux() http.Handler {
 			return
 		}
 		if err := s.removeZone(req.Name); err != nil {
-			if errors.Is(err, errZoneNotFound) {
+			switch {
+			case errors.Is(err, errZoneNotFound):
 				http.Error(w, err.Error(), http.StatusNotFound)
-			} else {
+			case errors.Is(err, errProtectedZone):
+				http.Error(w, err.Error(), http.StatusForbidden)
+			default:
 				http.Error(w, err.Error(), http.StatusBadRequest)
 			}
 			return
@@ -410,9 +413,12 @@ func (s *Server) Mux() http.Handler {
 			return
 		}
 		if err := s.removeRecord(req); err != nil {
-			if errors.Is(err, errRecordNotFound) || errors.Is(err, errZoneNotFound) {
+			switch {
+			case errors.Is(err, errRecordNotFound), errors.Is(err, errZoneNotFound):
 				http.Error(w, err.Error(), http.StatusNotFound)
-			} else {
+			case errors.Is(err, errProtectedZone):
+				http.Error(w, err.Error(), http.StatusForbidden)
+			default:
 				http.Error(w, err.Error(), http.StatusBadRequest)
 			}
 			return
@@ -489,6 +495,7 @@ func (s *Server) addZone(req types.Zone) error {
 
 var errRecordNotFound = fmt.Errorf("record not found")
 var errZoneNotFound = fmt.Errorf("zone not found")
+var errProtectedZone = fmt.Errorf("cannot modify protected zone")
 
 func (s *Server) removeZone(name string) error {
 	if name == "" {
@@ -499,6 +506,9 @@ func (s *Server) removeZone(name string) error {
 	defer s.handler.zonesLock.Unlock()
 	for i, zone := range s.handler.zones {
 		if zone.Name == name {
+			if zone.Protected {
+				return fmt.Errorf("%w: %s", errProtectedZone, name)
+			}
 			s.handler.zones = slices.Delete(s.handler.zones, i, i+1)
 			return nil
 		}
@@ -537,6 +547,9 @@ func (s *Server) removeRecord(req types.Zone) error {
 	for i, zone := range s.handler.zones {
 		if zone.Name != req.Name {
 			continue
+		}
+		if zone.Protected {
+			return fmt.Errorf("%w: %s", errProtectedZone, req.Name)
 		}
 		// First pass: validate all target records exist before deleting any
 		var notFound []string
