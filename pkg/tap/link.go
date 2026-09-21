@@ -96,7 +96,7 @@ func (e *LinkEndpoint) SetOnCloseAction(_ func()) {}
 func (e *LinkEndpoint) WritePackets(pkts stack.PacketBufferList) (int, tcpip.Error) {
 	n := 0
 	for _, p := range pkts.AsSlice() {
-		if err := e.writePacket(p.EgressRoute, p.NetworkProtocolNumber, p); err != nil {
+		if err := e.writePacket(&p.EgressRoute, p.NetworkProtocolNumber, p); err != nil {
 			return n, err
 		}
 		n++
@@ -104,7 +104,7 @@ func (e *LinkEndpoint) WritePackets(pkts stack.PacketBufferList) (int, tcpip.Err
 	return n, nil
 }
 
-func (e *LinkEndpoint) writePacket(r stack.RouteInfo, protocol tcpip.NetworkProtocolNumber, pkt *stack.PacketBuffer) tcpip.Error {
+func (e *LinkEndpoint) writePacket(r *stack.RouteInfo, protocol tcpip.NetworkProtocolNumber, pkt *stack.PacketBuffer) tcpip.Error {
 	// Preserve the src address if it's set in the route.
 	srcAddr := e.LinkAddress()
 	if r.LocalLinkAddress != "" {

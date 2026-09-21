@@ -25,7 +25,8 @@ func (n *VirtualNetwork) newServicesMux() *http.ServeMux {
 	mux := http.NewServeMux()
 	mux.Handle("/services/", http.StripPrefix("/services", n.servicesMux))
 	mux.HandleFunc("/stats", func(w http.ResponseWriter, r *http.Request) {
-		if err := json.NewEncoder(w).Encode(statsAsJSON(n.networkSwitch.Sent, n.networkSwitch.Received, n.stack.Stats())); err != nil {
+		stats := n.stack.Stats()
+		if err := json.NewEncoder(w).Encode(statsAsJSON(n.networkSwitch.Sent, n.networkSwitch.Received, &stats)); err != nil {
 			apilog.SetError(r, err)
 		}
 	})
