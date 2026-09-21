@@ -87,7 +87,7 @@ func HostKey(host string) ssh.PublicKey {
 func CreateBastion(_url *url.URL, passPhrase string, identity string, initial net.Conn, connect ConnectCallback) (*Bastion, error) {
 	var authMethods []ssh.AuthMethod
 
-	if len(identity) > 0 {
+	if identity != "" {
 		s, err := PublicKey(identity, []byte(passPhrase))
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse identity %q: %w", identity, err)
