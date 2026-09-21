@@ -7,7 +7,7 @@ require (
 	github.com/containers/winquit v1.1.0
 	github.com/coreos/stream-metadata-go v0.4.11
 	github.com/crc-org/vfkit v0.6.4
-	github.com/dustin/go-humanize v1.0.1
+	github.com/dustin/go-humanize v1.1.0
 	github.com/foxcpp/go-mockdns v1.2.0
 	github.com/google/gopacket v1.1.19
 	github.com/inetaf/tcpproxy v0.0.0-20260515195445-c159a6051109
