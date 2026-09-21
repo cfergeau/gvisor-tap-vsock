@@ -124,7 +124,7 @@ func splitTxt(s string) []string {
 		s = s[k:]
 	}
 
-	if len(s) > 0 {
+	if s != "" {
 		c = append(c, s)
 	}
 
