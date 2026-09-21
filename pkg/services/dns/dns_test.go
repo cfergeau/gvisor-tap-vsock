@@ -668,7 +668,7 @@ func TestDNS(t *testing.T) {
 	}
 }
 
-func startDNSServer(upstream upstreamResolver) (string, func(), error) {
+func startDNSServer(upstream upstreamResolver) (address string, closeFunc func(), outErr error) {
 	udpConn, err := net.ListenPacket("udp", "127.0.0.1:5354")
 	if err != nil {
 		return "", nil, err
