@@ -20,7 +20,7 @@ type version struct {
 	showVersion bool
 }
 
-func NewVersion(binaryName string) *version { //nolint:revive
+func NewVersion(binaryName string) *version { //nolint:revive // version is unexported on purpose, though this could be reconsidered
 	return &version{
 		binaryName: binaryName,
 	}
