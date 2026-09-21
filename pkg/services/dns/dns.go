@@ -425,16 +425,18 @@ func (s *Server) addZone(req types.Zone) error {
 	s.handler.zonesLock.Lock()
 	defer s.handler.zonesLock.Unlock()
 	for i, zone := range s.handler.zones {
-		if strings.EqualFold(zone.Name, req.Name) {
-			if zone.Protected {
-				return fmt.Errorf("cannot modify protected zone: %s", req.Name)
-			}
-			req.Records = append(req.Records, zone.Records...)
-			req.Protected = zone.Protected
-			req.Name = zone.Name
-			s.handler.zones[i] = req
-			return nil
+		if !strings.EqualFold(zone.Name, req.Name) {
+			continue
 		}
+
+		if zone.Protected {
+			return fmt.Errorf("cannot modify protected zone: %s", req.Name)
+		}
+		req.Records = append(req.Records, zone.Records...)
+		req.Protected = zone.Protected
+		req.Name = zone.Name
+		s.handler.zones[i] = req
+		return nil
 	}
 	// No existing zone for req.Name, add new one
 	req.Protected = false
