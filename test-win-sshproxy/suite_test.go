@@ -58,7 +58,7 @@ func startProxy() error {
 	return cmd.Start()
 }
 
-func readTid() (uint32, uint32, error) {
+func readTid() (outPid uint32, outTid uint32, outErr error) {
 	contents, err := os.ReadFile(tidFile)
 	if err != nil {
 		return 0, 0, err
