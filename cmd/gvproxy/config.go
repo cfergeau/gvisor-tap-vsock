@@ -241,7 +241,7 @@ func GvproxyConfigure(config *GvproxyConfig, args *GvproxyArgs, version string) 
 	}
 
 	// Perform various checks on the supplied IPs
-	if err := validateConfigIPs(config.Stack); err != nil {
+	if err := validateConfigIPs(&config.Stack); err != nil {
 		return config, fmt.Errorf("failed to validate configuration IPs: %w", err)
 	}
 
@@ -492,7 +492,7 @@ func getLastUsableIPFromSubnet(subnet netip.Prefix) (netip.Addr, error) {
 	return addr, nil
 }
 
-func validateConfigIPs(config types.Configuration) error {
+func validateConfigIPs(config *types.Configuration) error {
 	subnet, err := netip.ParsePrefix(config.Subnet)
 	if err != nil {
 		return fmt.Errorf("failed to parse subnet: %w", err)
