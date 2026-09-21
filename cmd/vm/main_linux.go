@@ -81,7 +81,7 @@ func run() error {
 
 	if path != "" {
 		log.Infof("Sending post request to %s", path)
-		req, err := http.NewRequest("POST", path, nil)
+		req, err := http.NewRequest("POST", path, http.NoBody)
 		if err != nil {
 			return err
 		}
