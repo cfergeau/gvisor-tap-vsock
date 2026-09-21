@@ -9,7 +9,7 @@ import (
 )
 
 func Tunnel(conn net.Conn, ip string, port int) error {
-	req, err := http.NewRequest("POST", fmt.Sprintf("/tunnel?ip=%s&port=%d", ip, port), nil)
+	req, err := http.NewRequest("POST", fmt.Sprintf("/tunnel?ip=%s&port=%d", ip, port), http.NoBody)
 	if err != nil {
 		return err
 	}
