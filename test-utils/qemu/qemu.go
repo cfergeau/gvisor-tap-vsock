@@ -142,7 +142,7 @@ func (cmd *Cmd) Cmd(qemuPath string) (*exec.Cmd, error) {
 	args = append(args, cmd.ignitionArgs()...)
 	args = append(args, cmd.netdevArgs()...)
 
-	return exec.Command(qemuPath, args...), nil // #nosec G204
+	return exec.Command(qemuPath, args...), nil // #nosec G204 -- qemuPath comes from Executable, which resolves a known QEMU binary.
 }
 
 func Executable() string {
