@@ -1,4 +1,6 @@
-package e2e_performance_qemu
+//go:build darwin && arm64
+
+package qemu
 
 import (
 	"fmt"
@@ -7,6 +9,7 @@ import (
 )
 
 func efiArgs() ([]string, error) {
+	// file may not exist, that's ok
 	_ = os.Remove("ovmf_vars.fd")
 	ovmfVars, err := os.Create("ovmf_vars.fd")
 	if err != nil {
@@ -19,15 +22,28 @@ func efiArgs() ([]string, error) {
 
 	edk2Path := getEdk2CodeFd("edk2-aarch64-code.fd")
 	return []string{
-		"-drive", fmt.Sprintf("file=%s,if=pflash,format=raw,readonly=on", edk2Path),
-		"-drive", fmt.Sprintf("file=%s,if=pflash,format=raw", ovmfVars.Name()),
+		"-drive",
+		fmt.Sprintf("file=%s,if=pflash,format=raw,readonly=on", edk2Path),
+		"-drive",
+		fmt.Sprintf("file=%s,if=pflash,format=raw", ovmfVars.Name()),
 	}, nil
 }
 
+/*
+ * When QEmu is installed in a non-default location in the system
+ * we can use the qemu-system-* binary path to figure the install
+ * location for Qemu and use it to look for edk2-code-fd
+ */
 func getEdk2CodeFdPathFromQemuBinaryPath() string {
-	return filepath.Clean(filepath.Join(filepath.Dir(qemuExecutable()), "..", "share", "qemu"))
+	return filepath.Clean(filepath.Join(filepath.Dir(Executable()), "..", "share", "qemu"))
 }
 
+/*
+ *  QEmu can be installed in multiple locations on MacOS, especially on
+ *  Apple Silicon systems.  A build from source will likely install it in
+ *  /usr/local/bin, whereas Homebrew package management standard is to
+ *  install in /opt/homebrew
+ */
 func getEdk2CodeFd(name string) string {
 	dirs := []string{
 		getEdk2CodeFdPathFromQemuBinaryPath(),

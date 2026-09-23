@@ -8,6 +8,7 @@ import (
 
 	"github.com/containers/gvisor-tap-vsock/pkg/types"
 	e2e_utils "github.com/containers/gvisor-tap-vsock/test-utils"
+	"github.com/containers/gvisor-tap-vsock/test-utils/qemu"
 
 	"github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
@@ -43,12 +44,12 @@ var helper = e2e_utils.NewSuiteHelper(e2e_utils.SuiteConfig{
 		cmd.AddQemuSocket("tcp://" + net.JoinHostPort("127.0.0.1", strconv.Itoa(qemuPort)))
 	},
 	SetupVM: func(imagePath, ignFile string) (*exec.Cmd, error) {
-		qemuC := newQemuCmd()
+		qemuC := qemu.NewCmd()
 		qemuC.SetIgnition(ignFile)
 		qemuC.SetDrive(imagePath, true)
 		qemuC.SetNetdevSocket(net.JoinHostPort("127.0.0.1", strconv.Itoa(qemuPort)), "5a:94:ef:e4:0c:ee")
 		qemuC.SetSerial(qconLog)
-		return qemuC.Cmd(qemuExecutable())
+		return qemuC.Cmd(qemu.Executable())
 	},
 })
 
