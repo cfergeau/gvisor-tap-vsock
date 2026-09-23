@@ -35,7 +35,7 @@ func efiArgs() ([]string, error) {
  * location for Qemu and use it to look for edk2-code-fd
  */
 func getEdk2CodeFdPathFromQemuBinaryPath() string {
-	return filepath.Clean(filepath.Join(filepath.Dir(Executable()), "..", "share", "qemu"))
+	return filepath.Clean(filepath.Join(filepath.Dir(executable()), "..", "share", "qemu"))
 }
 
 /*

@@ -107,7 +107,7 @@ var _ = ginkgo.BeforeSuite(func() {
 	qemuCmd.SetDrive(qemuImage, true)
 	qemuCmd.SetNetdevSocket(net.JoinHostPort("127.0.0.1", strconv.Itoa(qemuPort)), "5a:94:ef:e4:0c:ee")
 	qemuCmd.SetSerial(qconLog)
-	client, err = qemuCmd.Cmd(qemu.Executable())
+	client, err = qemuCmd.Cmd()
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 	client.Stderr = os.Stderr
 	client.Stdout = os.Stdout

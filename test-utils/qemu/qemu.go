@@ -126,7 +126,7 @@ func (cmd *Cmd) machineArgs() []string {
 	return []string{"-machine", fmt.Sprintf("%s,accel=%s:tcg", machine(), accel())}
 }
 
-func (cmd *Cmd) Cmd(qemuPath string) (*exec.Cmd, error) {
+func (cmd *Cmd) Cmd() (*exec.Cmd, error) {
 	efiArgs, err := efiArgs()
 	if err != nil {
 		return nil, err
@@ -142,10 +142,11 @@ func (cmd *Cmd) Cmd(qemuPath string) (*exec.Cmd, error) {
 	args = append(args, cmd.ignitionArgs()...)
 	args = append(args, cmd.netdevArgs()...)
 
-	return exec.Command(qemuPath, args...), nil // #nosec G204 -- qemuPath comes from Executable, which resolves a known QEMU binary.
+	qemuPath := executable()
+	return exec.Command(qemuPath, args...), nil
 }
 
-func Executable() string {
+func executable() string {
 	qemuBinaries := []string{"qemu-kvm", fmt.Sprintf("qemu-system-%s", e2e_utils.CoreosArch())}
 	for _, binary := range qemuBinaries {
 		path, err := exec.LookPath(binary)

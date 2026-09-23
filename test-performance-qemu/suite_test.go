@@ -49,7 +49,7 @@ var helper = e2e_utils.NewSuiteHelper(e2e_utils.SuiteConfig{
 		qemuC.SetDrive(imagePath, true)
 		qemuC.SetNetdevSocket(net.JoinHostPort("127.0.0.1", strconv.Itoa(qemuPort)), "5a:94:ef:e4:0c:ee")
 		qemuC.SetSerial(qconLog)
-		return qemuC.Cmd(qemu.Executable())
+		return qemuC.Cmd()
 	},
 })
 
