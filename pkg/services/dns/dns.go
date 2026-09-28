@@ -505,7 +505,7 @@ func (s *Server) removeZone(name string) error {
 	s.handler.zonesLock.Lock()
 	defer s.handler.zonesLock.Unlock()
 	for i, zone := range s.handler.zones {
-		if zone.Name == name {
+		if strings.EqualFold(zone.Name, name) {
 			if zone.Protected {
 				return fmt.Errorf("%w: %s", errProtectedZone, name)
 			}
@@ -518,7 +518,7 @@ func (s *Server) removeZone(name string) error {
 
 // recordMatches returns true if r matches the target (by Name and IP when provided).
 func recordMatches(r, target types.Record) bool {
-	if r.Name != target.Name {
+	if !strings.EqualFold(r.Name, target.Name) {
 		return false
 	}
 	if len(target.IP) != 0 && !r.IP.Equal(target.IP) {
@@ -545,7 +545,7 @@ func (s *Server) removeRecord(req types.Zone) error {
 	s.handler.zonesLock.Lock()
 	defer s.handler.zonesLock.Unlock()
 	for i, zone := range s.handler.zones {
-		if zone.Name != req.Name {
+		if !strings.EqualFold(zone.Name, req.Name) {
 			continue
 		}
 		if zone.Protected {

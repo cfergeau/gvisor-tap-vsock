@@ -214,7 +214,7 @@ var _ = ginkgo.Describe("dns add test", func() {
 				}},
 			}
 			server, _ = New(nil, nil, []types.Zone{zone})
-			gomega.Expect(server.removeZone("internal.")).To(gomega.Succeed())
+			gomega.Expect(server.removeZone("INTERNAL.")).To(gomega.Succeed())
 			gomega.Expect(server.handler.zones).To(gomega.BeEmpty())
 		})
 
@@ -335,7 +335,7 @@ var _ = ginkgo.Describe("dns add test", func() {
 				},
 			}
 			server, _ = New(nil, nil, []types.Zone{zone})
-			err := server.removeRecord(types.Zone{Name: "internal.", Records: []types.Record{{Name: "host1", IP: net.ParseIP("192.168.0.2")}}})
+			err := server.removeRecord(types.Zone{Name: "INTERNAL.", Records: []types.Record{{Name: "HOST1", IP: net.ParseIP("192.168.0.2")}}})
 			gomega.Expect(err).To(gomega.BeNil())
 			gomega.Expect(server.handler.zones).To(gomega.Equal([]types.Zone{{
 				Name: "internal.",
