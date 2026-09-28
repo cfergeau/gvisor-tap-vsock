@@ -50,14 +50,12 @@ func DownloadVMImage(downloadURL string, localImagePath string) error {
 }
 
 func Decompress(localPath string) (string, error) {
-	uncompressedPath := ""
-	if strings.HasSuffix(localPath, ".xz") {
-		uncompressedPath = strings.TrimSuffix(localPath, ".xz")
-	} else if strings.HasSuffix(localPath, ".gz") {
-		uncompressedPath = strings.TrimSuffix(localPath, ".gz")
+	uncompressedPath, hasSuffix := strings.CutSuffix(localPath, ".xz")
+	if !hasSuffix {
+		uncompressedPath, hasSuffix = strings.CutSuffix(localPath, ".gz")
 	}
 
-	if uncompressedPath == "" {
+	if !hasSuffix {
 		return "", fmt.Errorf("unsupported compression for %s", localPath)
 	}
 
