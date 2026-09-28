@@ -6,12 +6,12 @@ import (
 	"gvisor.dev/gvisor/pkg/tcpip"
 )
 
-func iterateFields(ret map[string]interface{}, valueOf reflect.Value) {
+func iterateFields(ret map[string]any, valueOf reflect.Value) {
 	for i := 0; i < valueOf.NumField(); i++ {
 		field := valueOf.Field(i)
 		fieldName := valueOf.Type().Field(i).Name
 		if field.Kind() == reflect.Struct {
-			m := make(map[string]interface{})
+			m := make(map[string]any)
 			ret[fieldName] = m
 			iterateFields(m, field)
 			continue
@@ -22,8 +22,8 @@ func iterateFields(ret map[string]interface{}, valueOf reflect.Value) {
 	}
 }
 
-func statsAsJSON(sent, received uint64, stats *tcpip.Stats) map[string]interface{} {
-	root := make(map[string]interface{})
+func statsAsJSON(sent, received uint64, stats *tcpip.Stats) map[string]any {
+	root := make(map[string]any)
 	iterateFields(root, reflect.ValueOf(stats))
 	root["BytesSent"] = sent
 	root["BytesReceived"] = received
