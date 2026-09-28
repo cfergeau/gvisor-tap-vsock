@@ -21,7 +21,7 @@ const maxCapturedErrorBody = 4096
 
 // AddField adds a key-value pair to the audit log for this request.
 // If the request was not wrapped by Middleware, this is a no-op.
-func AddField(r *http.Request, key string, value interface{}) {
+func AddField(r *http.Request, key string, value any) {
 	if fields, ok := r.Context().Value(fieldsContextKey).(log.Fields); ok {
 		fields[key] = value
 	}
