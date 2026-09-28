@@ -687,12 +687,17 @@ var _ = ginkgo.Describe("forwarding unhandled record types", func() {
 
 		aaaa := query(aaaaDomain, dns.TypeAAAA)
 		gomega.Expect(aaaa.Answer).To(gomega.BeEmpty(), "AAAA query for a name owned by a local zone must not be forwarded to the real upstream nameservers")
+		gomega.Expect(aaaa.Ns).To(gomega.HaveLen(1), "NODATA response must carry a synthetic SOA in the authority section (RFC 2308 §2.2)")
+		_, isSoa := aaaa.Ns[0].(*dns.SOA)
+		gomega.Expect(isSoa).To(gomega.BeTrue(), "authority record must be an SOA")
 
 		soa := query(aaaaDomain, dns.TypeSOA)
 		gomega.Expect(soa.Answer).To(gomega.BeEmpty(), "SOA query for a name owned by a local zone must not be forwarded to the real upstream nameservers")
+		gomega.Expect(soa.Ns).To(gomega.HaveLen(1), "NODATA SOA response must carry a synthetic SOA in the authority section")
 
 		txt := query(aaaaDomain, dns.TypeTXT)
 		gomega.Expect(txt.Answer).To(gomega.BeEmpty(), "TXT query for a name owned by a local zone must not be forwarded to the real upstream resolver")
+		gomega.Expect(txt.Ns).To(gomega.HaveLen(1), "NODATA TXT response must carry a synthetic SOA in the authority section")
 	})
 
 	ginkgo.It("should return SERVFAIL when the upstream cannot be reached", func() {
