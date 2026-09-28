@@ -9,6 +9,7 @@ linters:
     - modernize
     - revive
     - errcheck
+    - intrange
     - unused
   exclusions:
     generated: lax
