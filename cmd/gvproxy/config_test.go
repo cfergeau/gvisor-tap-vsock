@@ -66,7 +66,7 @@ func TestConfigInit(t *testing.T) {
 		}
 		cnf.Stack.DNSSearchDomains = nil
 
-		// #nosec G117 -- APITokenFile contains path to token file, not the token itself
+		// #nosec G117 -- cnf.APITokenFile contains path to token file, not the token itself
 		result, errMarshal := yaml.Marshal(cnf)
 		require.NoErrorf(t, errMarshal, "%s: unmarshallable config", v.CaseName)
 

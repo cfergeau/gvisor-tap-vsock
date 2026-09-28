@@ -35,8 +35,8 @@ func validateToken(token string) error {
 	return nil
 }
 
-// ReadTokenFromFile reads the token from a file and validates file permissions and token format
-func ReadTokenFromFile(filepath string) (string, error) {
+// readTokenFromFile reads the token from a file and validates file permissions and token format
+func readTokenFromFile(filepath string) (string, error) {
 	info, err := os.Stat(filepath)
 	if err != nil {
 		return "", fmt.Errorf("failed to stat token file: %w", err)
@@ -65,10 +65,10 @@ func ReadTokenFromFile(filepath string) (string, error) {
 	return token, nil
 }
 
-// ReadTokenFromEnv reads the token from the GV_API_TOKEN environment variable
+// readTokenFromEnv reads the token from the GV_API_TOKEN environment variable
 // Returns empty string and no error if the environment variable is not set
 // Returns error if the token is set but invalid (too short)
-func ReadTokenFromEnv() (string, error) {
+func readTokenFromEnv() (string, error) {
 	token := strings.TrimSpace(os.Getenv("GV_API_TOKEN"))
 	if token == "" {
 		// Empty token means "no token configured"
@@ -86,7 +86,7 @@ func ReadTokenFromEnv() (string, error) {
 // Returns empty string (no error) if no token is configured
 func ReadToken(tokenFile string) (string, error) {
 	if tokenFile != "" {
-		token, err := ReadTokenFromFile(tokenFile)
+		token, err := readTokenFromFile(tokenFile)
 		if err != nil {
 			return "", fmt.Errorf("failed to read API token from file %s: %w", tokenFile, err)
 		}
@@ -94,7 +94,7 @@ func ReadToken(tokenFile string) (string, error) {
 		return token, nil
 	}
 
-	token, err := ReadTokenFromEnv()
+	token, err := readTokenFromEnv()
 	if err != nil {
 		return "", fmt.Errorf("invalid API token in GV_API_TOKEN environment variable: %w", err)
 	}

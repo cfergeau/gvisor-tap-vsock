@@ -139,8 +139,9 @@ authentication. When enabled, all requests from within the VM require an `Author
 with the token.
 
 **Note:** Authentication only applies to the gateway endpoint accessible from the VM. Host-side endpoints
-(`--listen` or `--services`) remain unauthenticated as they are already protected by unix socket file permissions
-and/or localhost binding.
+(`--listen` or `--services`) remain unauthenticated. If they are backed by unix socket, they will be protected by
+the socket file permissions. If you use these with a `tcp` endpoint, they will be unauthenticated even if they would benefit from Bearer token authentication.
+[Issue #736](https://github.com/containers/gvisor-tap-vsock/issues/736 tracks this).
 
 **Token Format:**
 The token is a base64url-encoded random string, typically 44 characters long (minimum of 32 characters), for example:

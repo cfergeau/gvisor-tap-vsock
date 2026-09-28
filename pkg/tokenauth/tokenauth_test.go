@@ -128,13 +128,13 @@ func TestReadTokenFromFile_Whitespace(t *testing.T) {
 		t.Fatalf("Failed to write token file: %v", err)
 	}
 
-	token, err := ReadTokenFromFile(tokenFile)
+	token, err := readTokenFromFile(tokenFile)
 	if err != nil {
-		t.Fatalf("ReadTokenFromFile() failed: %v", err)
+		t.Fatalf("readTokenFromFile() failed: %v", err)
 	}
 
 	if token != validToken {
-		t.Errorf("ReadTokenFromFile() = %q, want %q", token, validToken)
+		t.Errorf("readTokenFromFile() = %q, want %q", token, validToken)
 	}
 }
 
@@ -181,7 +181,7 @@ func TestReadTokenFromFile_Permissions(t *testing.T) {
 				t.Fatalf("Failed to write token file: %v", err)
 			}
 
-			token, err := ReadTokenFromFile(tokenFile)
+			token, err := readTokenFromFile(tokenFile)
 
 			if tt.expectError {
 				if err == nil {
@@ -257,7 +257,7 @@ func TestReadTokenFromFile_Validation(t *testing.T) {
 				t.Fatalf("Failed to write token file: %v", err)
 			}
 
-			token, err := ReadTokenFromFile(tokenFile)
+			token, err := readTokenFromFile(tokenFile)
 
 			if tt.expectError {
 				if err == nil {
@@ -340,7 +340,7 @@ func TestReadTokenFromEnv(t *testing.T) {
 			}
 			defer os.Unsetenv("GV_API_TOKEN")
 
-			token, err := ReadTokenFromEnv()
+			token, err := readTokenFromEnv()
 
 			if tt.expectError {
 				if err == nil {
@@ -353,7 +353,7 @@ func TestReadTokenFromEnv(t *testing.T) {
 					t.Errorf("Unexpected error: %v", err)
 				}
 				if token != tt.want {
-					t.Errorf("ReadTokenFromEnv() = %q, want %q", token, tt.want)
+					t.Errorf("readTokenFromEnv() = %q, want %q", token, tt.want)
 				}
 			}
 		})
