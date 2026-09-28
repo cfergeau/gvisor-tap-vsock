@@ -158,9 +158,8 @@ func setupProxies(ctx context.Context, g *errgroup.Group, sources []string, dest
 		if err != nil {
 			return err
 		}
-		j := i
 		g.Go(func() error {
-			forward, err := sshclient.CreateSSHForward(ctx, src, dest, identities[j], nil)
+			forward, err := sshclient.CreateSSHForward(ctx, src, dest, identities[i], nil)
 			if err != nil {
 				return err
 			}
