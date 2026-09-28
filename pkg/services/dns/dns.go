@@ -372,7 +372,11 @@ func (s *Server) Mux() http.Handler {
 		}
 
 		if err := s.addZone(req); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			if errors.Is(err, errProtectedZone) {
+				http.Error(w, err.Error(), http.StatusForbidden)
+			} else {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+			}
 			return
 		}
 		w.WriteHeader(http.StatusOK)
@@ -478,7 +482,7 @@ func (s *Server) addZone(req types.Zone) error {
 	for i, zone := range s.handler.zones {
 		if strings.EqualFold(zone.Name, req.Name) {
 			if zone.Protected {
-				return fmt.Errorf("cannot modify protected zone: %s", req.Name)
+				return fmt.Errorf("%w: %s", errProtectedZone, req.Name)
 			}
 			req.Records = append(req.Records, zone.Records...)
 			req.Protected = zone.Protected
