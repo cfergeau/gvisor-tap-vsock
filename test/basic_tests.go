@@ -283,7 +283,8 @@ func BasicDNSTests(props BasicTestProps) {
 		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 		gomega.Expect(string(out)).To(gomega.ContainSubstring("Address: 192.168.127.1"))
 
-		out, _ = props.SSHExec("nslookup drop.removerecord.internal")
+		out, err = props.SSHExec("nslookup drop.removerecord.internal || true")
+		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 		gomega.Expect(string(out)).To(gomega.SatisfyAny(
 			gomega.ContainSubstring("can't find"),
 			gomega.ContainSubstring("NXDOMAIN"),
