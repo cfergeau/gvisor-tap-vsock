@@ -71,14 +71,16 @@ func (h *dnsHandler) addLocalAnswers(m *dns.Msg, q dns.Question) bool {
 		if strings.HasSuffix(lowerName, lowerSuffix) {
 			withoutZone := strings.TrimSuffix(lowerName, lowerSuffix)
 			var matchedIP net.IP
+			matched := false
 			for _, record := range zone.Records {
 				if (record.Name != "" && strings.EqualFold(record.Name, withoutZone)) ||
 					(record.Regexp != nil && record.Regexp.MatchString(withoutZone)) {
 					matchedIP = record.IP
+					matched = true
 					break
 				}
 			}
-			if matchedIP == nil && !zone.DefaultIP.Equal(net.IP("")) {
+			if !matched && len(zone.DefaultIP) > 0 && !zone.DefaultIP.IsUnspecified() {
 				matchedIP = zone.DefaultIP
 			}
 
