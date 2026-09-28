@@ -174,8 +174,9 @@ func createStack(configuration *types.Configuration, endpoint stack.LinkEndpoint
 func createPortsForwarder(configuration *types.Configuration, s *stack.Stack) (*forwarder.PortsForwarder, error) {
 	fw := forwarder.NewPortsForwarder(s)
 	for local, remote := range configuration.Forwards {
-		if strings.HasPrefix(local, "udp:") {
-			if err := fw.Expose(types.UDP, strings.TrimPrefix(local, "udp:"), remote); err != nil {
+		after, hasPrefix := strings.CutPrefix(local, "udp:")
+		if hasPrefix {
+			if err := fw.Expose(types.UDP, after, remote); err != nil {
 				return nil, err
 			}
 		} else {
