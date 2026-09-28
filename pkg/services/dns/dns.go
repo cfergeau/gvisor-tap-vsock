@@ -92,9 +92,12 @@ func (h *dnsHandler) addLocalAnswers(m *dns.Msg, q dns.Question) bool {
 				return true
 			}
 			if q.Qtype != dns.TypeA {
-				// Name exists in this zone, but the zone only ever
-				// serves A records. Answer NOERROR/NODATA locally
-				// instead of forwarding to the real upstream resolver.
+				// Name exists in this zone, but the zone only ever serves A
+				// records. Answer NOERROR/NODATA locally instead of forwarding
+				// to the real upstream resolver.
+				// RFC 2308 §2.2 requires an SOA in the authority section so
+				// resolvers can cache the negative answer using SOA MINIMUM.
+				m.Ns = append(m.Ns, syntheticSOA(zone.Name))
 				return true
 			}
 			m.Answer = append(m.Answer, &dns.A{
@@ -110,6 +113,28 @@ func (h *dnsHandler) addLocalAnswers(m *dns.Msg, q dns.Question) bool {
 		}
 	}
 	return false
+}
+
+// syntheticSOA returns a minimal SOA record for zoneName so that NODATA
+// responses carry the authority section required by RFC 2308 §2.2.
+// Resolvers use the SOA MINIMUM field as the negative-caching TTL; 60 s is
+// low enough to be acceptable for a local virtual network.
+func syntheticSOA(zoneName string) *dns.SOA {
+	return &dns.SOA{
+		Hdr: dns.RR_Header{
+			Name:   zoneName,
+			Rrtype: dns.TypeSOA,
+			Class:  dns.ClassINET,
+			Ttl:    60,
+		},
+		Ns:      "ns." + zoneName,
+		Mbox:    "hostmaster." + zoneName,
+		Serial:  1,
+		Refresh: 3600,
+		Retry:   900,
+		Expire:  86400,
+		Minttl:  60,
+	}
 }
 
 func splitTxt(s string) []string {
