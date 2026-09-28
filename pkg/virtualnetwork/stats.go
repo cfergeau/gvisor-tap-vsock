@@ -24,7 +24,7 @@ func iterateFields(ret map[string]any, valueOf reflect.Value) {
 
 func statsAsJSON(sent, received uint64, stats *tcpip.Stats) map[string]any {
 	root := make(map[string]any)
-	iterateFields(root, reflect.ValueOf(stats))
+	iterateFields(root, reflect.ValueOf(stats).Elem())
 	root["BytesSent"] = sent
 	root["BytesReceived"] = received
 	return root
