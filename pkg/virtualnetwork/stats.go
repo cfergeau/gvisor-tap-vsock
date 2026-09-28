@@ -16,6 +16,9 @@ func iterateFields(ret map[string]any, valueOf reflect.Value) {
 			iterateFields(m, field)
 			continue
 		}
+		if !field.CanInterface() {
+			continue
+		}
 		if counter, ok := reflect.TypeAssert[*tcpip.StatCounter](field); ok {
 			ret[fieldName] = counter.Value()
 		}
