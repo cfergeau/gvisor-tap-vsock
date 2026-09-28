@@ -55,7 +55,7 @@ func Decompress(localPath string) (string, error) {
 		uncompressedPath, hasSuffix = strings.CutSuffix(localPath, ".gz")
 	}
 
-	if !hasSuffix {
+	if !hasSuffix || uncompressedPath == "" {
 		return "", fmt.Errorf("unsupported compression for %s", localPath)
 	}
 
