@@ -6,6 +6,7 @@ linters:
     - gocritic
     - gosec
     - misspell
+    - modernize
     - revive
     - errcheck
     - unused
