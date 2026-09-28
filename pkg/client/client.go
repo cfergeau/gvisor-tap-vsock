@@ -19,6 +19,17 @@ type Client struct {
 	base   string
 }
 
+// HTTPError is returned by DNS API calls when the server responds with a non-200 status.
+// Callers can use errors.As to retrieve the StatusCode and distinguish e.g. 403 from 404.
+type HTTPError struct {
+	StatusCode int
+	Body       string
+}
+
+func (e *HTTPError) Error() string {
+	return e.Body
+}
+
 // New returns a new instance of a Client. client will be used for the HTTP communication, and base specifies the base path the HTTP API is available at.
 func New(client *http.Client, base string) *Client {
 	return &Client{
@@ -143,7 +154,7 @@ func (c *Client) dnsPost(path string, req interface{}) error {
 		if readErr != nil {
 			return fmt.Errorf("error while reading error message: %v", readErr)
 		}
-		return errors.New(strings.TrimSpace(string(body)))
+		return &HTTPError{StatusCode: res.StatusCode, Body: strings.TrimSpace(string(body))}
 	}
 	return nil
 }
