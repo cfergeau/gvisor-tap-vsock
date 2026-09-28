@@ -26,7 +26,7 @@ var _ = Describe("connectivity", func() {
 		Expect(err).ShouldNot(HaveOccurred())
 
 		var pid, tid uint32
-		for i := 0; i < 20; i++ {
+		for range 20 {
 			pid, tid, err = readTid()
 			if err == nil && tid != 0 {
 				break
