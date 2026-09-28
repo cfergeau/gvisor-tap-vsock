@@ -700,6 +700,27 @@ var _ = ginkgo.Describe("forwarding unhandled record types", func() {
 		gomega.Expect(txt.Ns).To(gomega.HaveLen(1), "NODATA TXT response must carry a synthetic SOA in the authority section")
 	})
 
+	ginkgo.It("should forward non-A queries for names not in the zone to upstream", func() {
+		// A zone with one record but no DefaultIP does not claim ownership
+		// of every name under its suffix.  A non-A query for an unmatched
+		// name must reach the upstream resolver, not get NXDOMAIN locally.
+		err := server.addZone(types.Zone{
+			Name: "example.org.",
+			Records: []types.Record{
+				{Name: "host", IP: net.ParseIP("192.168.127.10")},
+			},
+		})
+		gomega.Expect(err).ToNot(gomega.HaveOccurred())
+
+		// aaaaDomain ("aaaa.example.org.") has no local record; the AAAA
+		// query must be forwarded and return the upstream answer.
+		m := query(aaaaDomain, dns.TypeAAAA)
+		gomega.Expect(m.Rcode).To(gomega.Equal(dns.RcodeSuccess))
+		gomega.Expect(m.Answer).To(gomega.HaveLen(1), "unmatched name under zone suffix must be forwarded to upstream for non-A queries")
+		_, isAAAA := m.Answer[0].(*dns.AAAA)
+		gomega.Expect(isAAAA).To(gomega.BeTrue())
+	})
+
 	ginkgo.It("should return SERVFAIL when the upstream cannot be reached", func() {
 		server.handler.client = &dns.Client{Timeout: 200 * time.Millisecond}
 		server.handler.nameservers = []string{"127.0.0.1:1"} // nothing listening

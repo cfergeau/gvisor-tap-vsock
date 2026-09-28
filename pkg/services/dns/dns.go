@@ -86,10 +86,27 @@ func (h *dnsHandler) addLocalAnswers(m *dns.Msg, q dns.Question) bool {
 			}
 
 			if matchedIP == nil {
-				// No record and no DefaultIP catch-all: the name truly
-				// does not exist in this zone.
-				m.Rcode = dns.RcodeNameError
-				return true
+				// No record matched and no DefaultIP catch-all is set.
+				// The zone does not claim ownership of this name, so let
+				// the query fall through to the upstream resolver.
+				//
+				// Design note: this treats configured zones as partial
+				// overrides (split-horizon) rather than fully authoritative
+				// for their suffix.  A fully authoritative server would
+				// return NXDOMAIN here, which is what f9779bd4 did.  That
+				// is correct for a complete zone delegation but wrong for
+				// the common gvisor-tap-vsock use case of overriding only
+				// specific names inside an otherwise public domain (e.g.
+				// adding one internal record under corp.example.com. while
+				// leaving all other corp.example.com. names resolvable via
+				// the public DNS).  The NXDOMAIN from f9779bd4 silently
+				// broke every non-A lookup for names that share the zone
+				// suffix but have no local record.
+				//
+				// Names that ARE in the zone (a record or DefaultIP
+				// matched) are still answered locally for all query types;
+				// only truly unmatched names fall through.
+				return false
 			}
 			if q.Qtype != dns.TypeA {
 				// Name exists in this zone, but the zone only ever serves A
