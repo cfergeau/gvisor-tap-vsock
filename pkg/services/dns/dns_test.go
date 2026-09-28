@@ -260,6 +260,48 @@ var _ = ginkgo.Describe("dns add test", func() {
 		gomega.Expect(server.handler.zones[0].Protected).To(gomega.BeFalse())
 	})
 
+	ginkgo.It("should return NXDOMAIN for a regexp match with nil IP even when a DefaultIP is set", func() {
+		// A Regexp record with no IP explicitly claims the matching names in the
+		// zone; DefaultIP must not override that match.
+		server, _ = New(nil, nil, []types.Zone{
+			{
+				Name:      "internal.",
+				DefaultIP: net.ParseIP("10.0.0.1"),
+				Records: []types.Record{
+					{Name: "wildcard", Regexp: regexp.MustCompile("matched-.*")},
+				},
+			},
+		})
+		m := &dns.Msg{}
+		m.SetQuestion("matched-host.internal.", dns.TypeA)
+		server.handler.addAnswers(m)
+		gomega.Expect(m.Rcode).To(gomega.Equal(dns.RcodeNameError))
+		gomega.Expect(m.Answer).To(gomega.BeEmpty())
+
+		// A name that does NOT match the regexp should still get the DefaultIP.
+		m2 := &dns.Msg{}
+		m2.SetQuestion("other.internal.", dns.TypeA)
+		server.handler.addAnswers(m2)
+		gomega.Expect(m2.Rcode).To(gomega.Equal(dns.RcodeSuccess))
+		gomega.Expect(m2.Answer).To(gomega.HaveLen(1))
+		a, ok := m2.Answer[0].(*dns.A)
+		gomega.Expect(ok).To(gomega.BeTrue())
+		gomega.Expect(a.A.Equal(net.ParseIP("10.0.0.1"))).To(gomega.BeTrue())
+	})
+
+	ginkgo.It("should not use 0.0.0.0 as a DefaultIP catch-all", func() {
+		server, _ = New(nil, nil, []types.Zone{
+			{
+				Name:      "internal.",
+				DefaultIP: net.ParseIP("0.0.0.0"),
+			},
+		})
+		m := &dns.Msg{}
+		m.SetQuestion("host.internal.", dns.TypeA)
+		server.handler.addAnswers(m)
+		gomega.Expect(m.Rcode).To(gomega.Equal(dns.RcodeNameError))
+		gomega.Expect(m.Answer).To(gomega.BeEmpty())
+	})
 })
 
 var _ = ginkgo.Describe("dns zone validation", func() {
