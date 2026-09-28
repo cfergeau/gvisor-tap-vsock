@@ -22,7 +22,7 @@ func Retry[T comparable](ctx context.Context, retryFunc func() (T, error), retry
 	backoff := initialBackoff
 
 loop:
-	for range maxRetries {
+	for i := range maxRetries {
 		select {
 		case <-ctx.Done():
 			break loop
@@ -35,8 +35,10 @@ loop:
 			return returnVal, nil
 		}
 		logrus.Debugf("%s (%s)", retryMsg, backoff)
-		Sleep(ctx, backoff)
-		backoff = backOff(backoff)
+		if i < maxRetries-1 {
+			Sleep(ctx, backoff)
+			backoff = backOff(backoff)
+		}
 	}
 	return returnVal, fmt.Errorf("timeout: %w", err)
 }
