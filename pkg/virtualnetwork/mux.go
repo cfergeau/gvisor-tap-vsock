@@ -8,6 +8,7 @@ import (
 	"net"
 	"net/http"
 	"strconv"
+	"sync/atomic"
 
 	"github.com/containers/gvisor-tap-vsock/pkg/apilog"
 	"github.com/containers/gvisor-tap-vsock/pkg/tokenauth"
@@ -25,8 +26,10 @@ func (n *VirtualNetwork) newServicesMux() *http.ServeMux {
 	mux := http.NewServeMux()
 	mux.Handle("/services/", http.StripPrefix("/services", n.servicesMux))
 	mux.HandleFunc("/stats", func(w http.ResponseWriter, r *http.Request) {
+		sent := atomic.LoadUint64(&n.networkSwitch.Sent)
+		received := atomic.LoadUint64(&n.networkSwitch.Received)
 		stats := n.stack.Stats()
-		if err := json.NewEncoder(w).Encode(statsAsJSON(n.networkSwitch.Sent, n.networkSwitch.Received, &stats)); err != nil {
+		if err := json.NewEncoder(w).Encode(statsAsJSON(sent, received, &stats)); err != nil {
 			apilog.SetError(r, err)
 		}
 	})
