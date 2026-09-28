@@ -136,7 +136,7 @@ func setupLogging(name string) (*eventlog.Log, error) {
 }
 
 func setupProxies(ctx context.Context, g *errgroup.Group, sources []string, dests []string, identities []string) error {
-	for i := range len(sources) {
+	for i := range sources {
 		var (
 			src  *url.URL
 			dest *url.URL
