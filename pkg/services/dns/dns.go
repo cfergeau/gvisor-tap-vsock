@@ -68,8 +68,8 @@ func (h *dnsHandler) addLocalAnswers(m *dns.Msg, q dns.Question) bool {
 		zoneSuffix := fmt.Sprintf(".%s", zone.Name)
 		lowerName := strings.ToLower(q.Name)
 		lowerSuffix := strings.ToLower(zoneSuffix)
-		if strings.HasSuffix(lowerName, lowerSuffix) {
-			withoutZone := strings.TrimSuffix(lowerName, lowerSuffix)
+		withoutZone, hasSuffix := strings.CutSuffix(lowerName, lowerSuffix)
+		if hasSuffix {
 			var matchedIP net.IP
 			for _, record := range zone.Records {
 				if (record.Name != "" && strings.EqualFold(record.Name, withoutZone)) ||
