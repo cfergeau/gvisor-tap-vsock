@@ -33,7 +33,13 @@ func Dial(endpoint string, arg ...string) (net.Conn, error) {
 		writer: stdin,
 		local:  local,
 		remote: remote,
-		close:  cmd.Process.Kill,
+		// Kill alone leaves the exited child unreaped (a zombie per
+		// redial, e.g. when the endpoint fails to start); Wait reaps it.
+		close: func() error {
+			_ = cmd.Process.Kill()
+			_ = cmd.Wait()
+			return nil
+		},
 	}
 	return conn, nil
 }
