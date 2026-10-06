@@ -86,6 +86,13 @@ func (h *dnsHandler) addLocalAnswers(m *dns.Msg, q dns.Question) bool {
 			}
 
 			if matchedIP == nil {
+				if matched {
+					// A matching record with no IP explicitly claims this name,
+					// but provides no address. Do not let an upstream answer
+					// override that local negative record.
+					m.Rcode = dns.RcodeNameError
+					return true
+				}
 				// No record matched and no DefaultIP catch-all is set.
 				// The zone does not claim ownership of this name, so let
 				// the query fall through to the upstream resolver.

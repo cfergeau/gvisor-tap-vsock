@@ -274,7 +274,8 @@ var _ = ginkgo.Describe("dns add test", func() {
 		})
 		m := &dns.Msg{}
 		m.SetQuestion("matched-host.internal.", dns.TypeA)
-		server.handler.addAnswers(m)
+		handled := server.handler.addLocalAnswers(m, m.Question[0])
+		gomega.Expect(handled).To(gomega.BeTrue(), "a matching nil-IP record must be handled locally")
 		gomega.Expect(m.Rcode).To(gomega.Equal(dns.RcodeNameError))
 		gomega.Expect(m.Answer).To(gomega.BeEmpty())
 
