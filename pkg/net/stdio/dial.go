@@ -1,6 +1,7 @@
 package stdio
 
 import (
+	"errors"
 	"net"
 	"os"
 	"os/exec"
@@ -33,10 +34,12 @@ func Dial(endpoint string, arg ...string) (net.Conn, error) {
 		writer: stdin,
 		local:  local,
 		remote: remote,
-		// Kill alone leaves the exited child unreaped (a zombie per
-		// redial, e.g. when the endpoint fails to start); Wait reaps it.
 		close: func() error {
-			_ = cmd.Process.Kill()
+			if err := cmd.Process.Kill(); err != nil {
+				if !errors.Is(err, os.ErrProcessDone) {
+					return err
+				}
+			}
 			_ = cmd.Wait()
 			return nil
 		},
