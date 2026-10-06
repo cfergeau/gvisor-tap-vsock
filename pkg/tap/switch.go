@@ -30,6 +30,7 @@ type NetworkSwitch interface {
 	DeliverNetworkPacket(protocol tcpip.NetworkProtocolNumber, pkt *stack.PacketBuffer)
 }
 
+// FIXME: No longer used after `simplify protocols/protocolConn/...`
 const maxStreamPacketSize = 128 * 1024
 
 type Switch struct {
@@ -216,6 +217,7 @@ func (e *Switch) disconnect(id int, conn net.Conn) {
 	delete(e.conns, id)
 }
 
+// FIXME: No longer used after `simplify protocols/protocolConn/...`
 func validateStreamPacketSize(size int) (err error) {
 	if size < 0 || size > maxStreamPacketSize {
 		err = fmt.Errorf("invalid packet size: %d is negative or exceeds maximum %d", size, maxStreamPacketSize)
