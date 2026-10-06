@@ -1,4 +1,4 @@
-// Copyright 2023 The gVisor Authors.
+// Copyright 2026 The gVisor Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,11 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package sync
+package tcp
 
-// Values for the reason argument to gopark, from Go's src/runtime/runtime2.go.
-const (
-	WaitReasonSelect      uint8 = 18
-	WaitReasonChanReceive uint8 = 19
-	WaitReasonSemacquire  uint8 = 13
+import (
+	"context"
+	"fmt"
 )
+
+// afterLoad is invoked by stateify.
+func (p *protocol) afterLoad(ctx context.Context) {
+	rng := p.stack.SecureRNG()
+	if n, err := rng.Reader.Read(p.seqnumSecret[:]); err != nil || n != len(p.seqnumSecret) {
+		panic(fmt.Sprintf("rng.Reader.Read(seqnumSecret) failed: n=%d err=%v", n, err))
+	}
+	if n, err := rng.Reader.Read(p.tsOffsetSecret[:]); err != nil || n != len(p.tsOffsetSecret) {
+		panic(fmt.Sprintf("rng.Reader.Read(tsOffsetSecret) failed: n=%d err=%v", n, err))
+	}
+}
