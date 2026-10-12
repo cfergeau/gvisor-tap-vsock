@@ -12,6 +12,7 @@ linters:
     - intrange
     - unused
     - bodyclose
+    - errorlint
   exclusions:
     generated: lax
     presets:

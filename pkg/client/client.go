@@ -70,7 +70,7 @@ func (c *Client) Expose(req *types.ExposeRequest) error {
 	if res.StatusCode != http.StatusOK {
 		err, readErr := io.ReadAll(res.Body)
 		if readErr != nil {
-			return fmt.Errorf("error while reading error message: %v", readErr)
+			return fmt.Errorf("error while reading error message: %w", readErr)
 		}
 		return errors.New(strings.TrimSpace(string(err)))
 	}
@@ -97,7 +97,7 @@ func (c *Client) Unexpose(req *types.UnexposeRequest) error {
 	if res.StatusCode != http.StatusOK {
 		err, readErr := io.ReadAll(res.Body)
 		if readErr != nil {
-			return fmt.Errorf("error while reading error message: %v", readErr)
+			return fmt.Errorf("error while reading error message: %w", readErr)
 		}
 		return errors.New(strings.TrimSpace(string(err)))
 	}
@@ -147,7 +147,7 @@ func (c *Client) AddDNS(req *types.Zone) error {
 	if res.StatusCode != http.StatusOK {
 		err, readErr := io.ReadAll(res.Body)
 		if readErr != nil {
-			return fmt.Errorf("error while reading error message: %v", readErr)
+			return fmt.Errorf("error while reading error message: %w", readErr)
 		}
 		return errors.New(strings.TrimSpace(string(err)))
 	}

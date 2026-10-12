@@ -2,6 +2,7 @@ package e2eutils
 
 import (
 	"compress/gzip"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -115,7 +116,7 @@ func decompressGZ(src string, output io.Writer) error {
 	for {
 		_, err := io.CopyN(output, reader, 1024)
 		if err != nil {
-			if err == io.EOF {
+			if errors.Is(err, io.EOF) {
 				break
 			}
 			return err

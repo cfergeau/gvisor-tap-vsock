@@ -45,7 +45,7 @@ func PublicKey(path string, passphrase []byte) (ssh.Signer, error) {
 
 	signer, err := ssh.ParsePrivateKey(key)
 	if err != nil {
-		if _, ok := err.(*ssh.PassphraseMissingError); !ok {
+		if _, ok := errors.AsType[*ssh.PassphraseMissingError](err); !ok {
 			return nil, err
 		}
 		return ssh.ParsePrivateKeyWithPassphrase(key, passphrase)
