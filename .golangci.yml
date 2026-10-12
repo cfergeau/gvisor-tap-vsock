@@ -11,6 +11,7 @@ linters:
     - errcheck
     - intrange
     - unused
+    - bodyclose
   exclusions:
     generated: lax
     presets:
