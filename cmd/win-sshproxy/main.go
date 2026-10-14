@@ -164,6 +164,7 @@ func setupProxies(ctx context.Context, g *errgroup.Group, sources []string, dest
 			if err != nil {
 				return err
 			}
+			defer os.Remove(sources[i])
 			go func() {
 				<-ctx.Done()
 				// Abort pending accepts
