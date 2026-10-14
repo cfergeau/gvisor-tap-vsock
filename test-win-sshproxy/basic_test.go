@@ -4,7 +4,9 @@ package e2e
 
 import (
 	"context"
+	"errors"
 	"io"
+	"io/fs"
 	"net"
 	"net/http"
 	"os"
@@ -75,7 +77,13 @@ var _ = Describe("connectivity", func() {
 	})
 
 	It("proxies over a unix socket", func() {
-		err := startProxy("unix://" + unixSocketPath)
+		_, err := os.Stat(unixSocketPath)
+		Expect(err).Should(HaveOccurred())
+		Expect(errors.Is(err, fs.ErrNotExist)).Should(BeTrue())
+
+		err = startProxy("unix://" + unixSocketPath)
+		Expect(err).ShouldNot(HaveOccurred())
+		_, err = os.Stat(unixSocketPath)
 		Expect(err).ShouldNot(HaveOccurred())
 		defer func() {
 			Expect(stopProxy(true)).ShouldNot(HaveOccurred())
@@ -103,6 +111,10 @@ var _ = Describe("connectivity", func() {
 			g.Expect(string(reply)).To(Equal("pong"))
 
 		}).Should(Succeed())
+		Expect(stopProxy(false)).ShouldNot(HaveOccurred())
+		_, err = os.Stat(unixSocketPath)
+		Expect(err).Should(HaveOccurred())
+		Expect(errors.Is(err, fs.ErrNotExist)).Should(BeTrue())
 	})
 	It("windows event logs were created", func() {
 		cmd := exec.Command("powershell", "-Command", "&{Get-WinEvent -ProviderName \".NET Runtime\" -MaxEvents 10 | Where-Object -Property Message -Match \"test:\"}")
