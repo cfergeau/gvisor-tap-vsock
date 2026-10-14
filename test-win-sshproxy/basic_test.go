@@ -74,6 +74,36 @@ var _ = Describe("connectivity", func() {
 		}).Should(Succeed())
 	})
 
+	It("proxies over a unix socket", func() {
+		err := startProxy("unix://" + unixSocketPath)
+		Expect(err).ShouldNot(HaveOccurred())
+		defer func() {
+			Expect(stopProxy(true)).ShouldNot(HaveOccurred())
+		}()
+		httpClient := &http.Client{
+			Transport: &http.Transport{
+				DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+					return net.Dial("unix", unixSocketPath)
+				},
+			},
+		}
+
+		Eventually(func(g Gomega) {
+			resp, err := httpClient.Get("http://host/ping")
+			g.Expect(err).ShouldNot(HaveOccurred())
+			defer resp.Body.Close()
+
+			g.Expect(resp.StatusCode).To(Equal(http.StatusOK))
+			g.Expect(resp.ContentLength).To(Equal(int64(4)))
+
+			reply := make([]byte, resp.ContentLength)
+			_, err = io.ReadAtLeast(resp.Body, reply, len(reply))
+
+			g.Expect(err).ShouldNot(HaveOccurred())
+			g.Expect(string(reply)).To(Equal("pong"))
+
+		}).Should(Succeed())
+	})
 	It("windows event logs were created", func() {
 		cmd := exec.Command("powershell", "-Command", "&{Get-WinEvent -ProviderName \".NET Runtime\" -MaxEvents 10 | Where-Object -Property Message -Match \"test:\"}")
 		reader, err := cmd.StdoutPipe()
