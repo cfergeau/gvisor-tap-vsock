@@ -23,12 +23,12 @@ const (
 )
 
 var (
-	tmpDir        string
-	binDir        string
-	keyFile       string
-	winSshProxy   string
-	tidFile       string
-	unixListenURL string
+	tmpDir         string
+	binDir         string
+	keyFile        string
+	winSshProxy    string
+	tidFile        string
+	unixSocketPath string
 )
 
 func TestSuite(t *testing.T) {
@@ -44,7 +44,7 @@ func init() {
 	_ = os.WriteFile(keyFile, []byte(fakeHostKey), 0o600)
 	winSshProxy = filepath.Join(binDir, "win-sshproxy.exe")
 	tidFile = filepath.Join(tmpDir, "win-sshproxy.tid")
-	unixListenURL = "unix://" + filepath.Join(tmpDir, "fake_docker_engine.sock")
+	unixSocketPath = filepath.Join(tmpDir, "fake_docker_engine.sock")
 }
 
 var _ = BeforeSuite(func() {
