@@ -164,6 +164,12 @@ func setupProxies(ctx context.Context, g *errgroup.Group, sources []string, dest
 			if err != nil {
 				return err
 			}
+			defer func() {
+				if src.Scheme == "unix" {
+					os.Remove(src.Path)
+				}
+			}()
+
 			go func() {
 				<-ctx.Done()
 				// Abort pending accepts
