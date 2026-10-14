@@ -18,8 +18,8 @@ import (
 )
 
 const (
-	WM_QUIT        = 0x12
-	npipeListenURL = "npipe:////./pipe/fake_docker_engine"
+	WM_QUIT   = 0x12
+	npipePath = "//./pipe/fake_docker_engine"
 )
 
 var (
