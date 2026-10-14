@@ -18,7 +18,8 @@ import (
 )
 
 const (
-	WM_QUIT = 0x12
+	WM_QUIT        = 0x12
+	npipeListenURL = "npipe:////./pipe/fake_docker_engine"
 )
 
 var (
@@ -52,9 +53,9 @@ var _ = AfterSuite(func() {
 	stopMockServer()
 })
 
-func startProxy() error {
+func startProxy(listenURL string) error {
 	os.Remove(tidFile)
-	cmd := exec.Command(winSshProxy, "-debug", "test", tmpDir, "npipe:////./pipe/fake_docker_engine", "ssh://localhost:2134/run/podman/podman.sock", keyFile)
+	cmd := exec.Command(winSshProxy, "-debug", "test", tmpDir, listenURL, "ssh://localhost:2134/run/podman/podman.sock", keyFile)
 	return cmd.Start()
 }
 
