@@ -337,11 +337,11 @@ func run(ctx context.Context, g *errgroup.Group, config *GvproxyConfig) error {
 		}
 		j := i
 		g.Go(func() error {
-			defer os.Remove(config.Forwards[j].Socket)
 			forward, err := sshclient.CreateSSHForward(ctx, src, dest, config.Forwards[j].Identity, vn)
 			if err != nil {
 				return err
 			}
+			defer os.Remove(config.Forwards[j].Socket)
 			go func() {
 				<-ctx.Done()
 				// Abort pending accepts
