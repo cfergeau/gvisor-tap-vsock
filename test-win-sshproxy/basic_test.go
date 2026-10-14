@@ -22,7 +22,7 @@ var timeout = 1 * time.Minute
 
 var _ = Describe("connectivity", func() {
 	It("proxy exits as requested, without a kill", func() {
-		err := startProxy()
+		err := startProxy("npipe://" + npipePath)
 		Expect(err).ShouldNot(HaveOccurred())
 
 		var pid, tid uint32
@@ -44,7 +44,7 @@ var _ = Describe("connectivity", func() {
 	})
 
 	It("proxies over a windows pipe", func() {
-		err := startProxy()
+		err := startProxy("npipe://" + npipePath)
 		Expect(err).ShouldNot(HaveOccurred())
 		defer func() {
 			Expect(stopProxy(false)).ShouldNot(HaveOccurred())
@@ -52,7 +52,7 @@ var _ = Describe("connectivity", func() {
 		httpClient := &http.Client{
 			Transport: &http.Transport{
 				DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
-					return winio.DialPipe(`\\.\pipe\fake_docker_engine`, &timeout)
+					return winio.DialPipe(npipePath, &timeout)
 				},
 			},
 		}
