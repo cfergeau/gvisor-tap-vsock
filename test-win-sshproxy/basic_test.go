@@ -81,14 +81,18 @@ var _ = Describe("connectivity", func() {
 		Expect(err).Should(HaveOccurred())
 		Expect(errors.Is(err, fs.ErrNotExist)).Should(BeTrue())
 
-		err = startProxy( unixSocketPath)
+		err = startProxy(unixSocketPath)
 		Expect(err).ShouldNot(HaveOccurred())
+		proxyRunning := true
 		/*
 			_, err = os.Stat(unixSocketPath)
 			Expect(err).ShouldNot(HaveOccurred())
 		*/
 		defer func() {
-			Expect(stopProxy(true)).ShouldNot(HaveOccurred())
+			if proxyRunning {
+				Expect(stopProxy(true)).ShouldNot(HaveOccurred())
+				proxyRunning = false
+			}
 		}()
 		httpClient := &http.Client{
 			Transport: &http.Transport{
@@ -114,6 +118,7 @@ var _ = Describe("connectivity", func() {
 
 		}).Should(Succeed())
 		Expect(stopProxy(false)).ShouldNot(HaveOccurred())
+		proxyRunning = false
 		_, err = os.Stat(unixSocketPath)
 		Expect(err).Should(HaveOccurred())
 		Expect(errors.Is(err, fs.ErrNotExist)).Should(BeTrue())
