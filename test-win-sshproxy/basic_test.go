@@ -81,7 +81,7 @@ var _ = Describe("connectivity", func() {
 		Expect(err).Should(HaveOccurred())
 		Expect(errors.Is(err, fs.ErrNotExist)).Should(BeTrue())
 
-		err = startProxy("unix://" + unixSocketPath)
+		err = startProxy( unixSocketPath)
 		Expect(err).ShouldNot(HaveOccurred())
 		/*
 			_, err = os.Stat(unixSocketPath)
