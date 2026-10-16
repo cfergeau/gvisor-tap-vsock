@@ -78,9 +78,12 @@ func readTid() (uint32, uint32, error) {
 func sendQuit(tid uint32) {
 	user32 := syscall.NewLazyDLL("user32.dll")
 	postMessage := user32.NewProc("PostThreadMessageW")
-	_, _, err := postMessage.Call(uintptr(tid), WM_QUIT, 0, 0)
-	if err != nil {
-		logrus.Errorf("Error posting quit message: %v", err)
+	retVal, _, err := postMessage.Call(uintptr(tid), WM_QUIT, 0, 0)
+	// FIXME: error will always be non-nil
+	// https://pkg.go.dev/syscall?GOOS=windows#Proc.Call
+	// for PostThreadMessageW, 0 means there was an error, and !=0 means there was no error
+	if retVal == 0 {
+		logrus.Errorf("Error posting quit message: %v (%v)", err, retVal)
 	}
 }
 
