@@ -153,6 +153,12 @@ func setupProxies(ctx context.Context, g *errgroup.Group, sources []string, dest
 				Path:   sources[i],
 			}
 		}
+		if src.Scheme == "unix" {
+			// This file was specified on the command line, we assume it is safe to remove it even if we did not create it
+			// This helps with backward-compatibility after ba6d97
+			// See https://github.com/podman-container-tools/podman/issues/29971
+			_ = os.Remove(src.Path) //nolint:gosec
+		}
 
 		dest, err = url.Parse(dests[i])
 		if err != nil {
