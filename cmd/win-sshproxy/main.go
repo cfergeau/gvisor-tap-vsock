@@ -172,7 +172,7 @@ func setupProxies(ctx context.Context, g *errgroup.Group, sources []string, dest
 			}
 			defer func() {
 				if src.Scheme == "unix" {
-					os.Remove(src.Path)
+					os.Remove(src.Path) //nolint:gosec
 				}
 			}()
 
