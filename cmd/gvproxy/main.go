@@ -341,7 +341,12 @@ func run(ctx context.Context, g *errgroup.Group, config *GvproxyConfig) error {
 			if err != nil {
 				return err
 			}
-			defer os.Remove(config.Forwards[j].Socket)
+			defer func() {
+				if src.Scheme == "unix" {
+					os.Remove(src.Path)
+				}
+			}()
+
 			go func() {
 				<-ctx.Done()
 				// Abort pending accepts
