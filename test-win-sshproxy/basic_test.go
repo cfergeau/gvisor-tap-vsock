@@ -124,6 +124,7 @@ var _ = Describe("connectivity", func() {
 		Expect(err).Should(HaveOccurred())
 		Expect(errors.Is(err, fs.ErrNotExist)).Should(BeTrue())
 	})
+
 	It("windows event logs were created", func() {
 		cmd := exec.Command("powershell", "-Command", "&{Get-WinEvent -ProviderName \".NET Runtime\" -MaxEvents 10 | Where-Object -Property Message -Match \"test:\"}")
 		reader, err := cmd.StdoutPipe()
