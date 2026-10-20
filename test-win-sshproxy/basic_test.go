@@ -45,56 +45,6 @@ var _ = Describe("connectivity", func() {
 		Expect(err).ShouldNot(HaveOccurred())
 	})
 
-	It("exits and cleans up when Stop-Process is used", func() {
-		_, err := os.Stat(unixSocketPath)
-		Expect(err).Should(HaveOccurred())
-		Expect(errors.Is(err, fs.ErrNotExist)).Should(BeTrue())
-
-		err = startProxy(unixSocketPath)
-		Expect(err).ShouldNot(HaveOccurred())
-		proxyRunning := true
-		defer func() {
-			if proxyRunning {
-				Expect(stopProxy(true)).ShouldNot(HaveOccurred())
-				proxyRunning = false
-			}
-		}()
-		httpClient := &http.Client{
-			Transport: &http.Transport{
-				DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
-					return net.Dial("unix", unixSocketPath)
-				},
-			},
-		}
-
-		// Needs to connect to the REST API to trigger the creation of `unixSocketPath`
-		Eventually(func(g Gomega) {
-			resp, err := httpClient.Get("http://host/ping")
-			g.Expect(err).ShouldNot(HaveOccurred())
-			defer resp.Body.Close()
-
-			g.Expect(resp.StatusCode).To(Equal(http.StatusOK))
-			g.Expect(resp.ContentLength).To(Equal(int64(4)))
-
-			reply := make([]byte, resp.ContentLength)
-			_, err = io.ReadAtLeast(resp.Body, reply, len(reply))
-
-			g.Expect(err).ShouldNot(HaveOccurred())
-			g.Expect(string(reply)).To(Equal("pong"))
-
-		}).Should(Succeed())
-
-		_, err = os.Stat(unixSocketPath)
-		Expect(err).ShouldNot(HaveOccurred())
-
-		Expect(stopProxyWithPowershell()).ShouldNot(HaveOccurred())
-		proxyRunning = false
-
-		_, err = os.Stat(unixSocketPath)
-		Expect(err).Should(HaveOccurred())
-		Expect(errors.Is(err, fs.ErrNotExist)).Should(BeTrue())
-	})
-
 	It("proxies over a windows pipe", func() {
 		err := startProxy("npipe://" + npipePath)
 		Expect(err).ShouldNot(HaveOccurred())

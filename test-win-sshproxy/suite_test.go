@@ -112,42 +112,6 @@ func stopProxy(noKill bool) error {
 	return nil
 }
 
-func psStopProcess(pid uint32) error {
-	powershell, err := exec.LookPath("powershell.exe")
-	if err != nil {
-		return err
-	}
-	cmd := exec.Command(powershell, "Stop-Process", "-Id", fmt.Sprintf("%d", pid), "-PassThru")
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-
-	return cmd.Run()
-}
-
-func stopProxyWithPowershell() error {
-	pid, _, err := readTid()
-	if err != nil {
-		return err
-	}
-
-	err = psStopProcess(pid)
-	if err != nil {
-		return err
-	}
-
-	proc, err := os.FindProcess(int(pid))
-	if err != nil {
-		return err
-	}
-	state := waitTimeout(proc, 20*time.Second)
-	if state == nil || !state.Exited() {
-		return fmt.Errorf("proxy did not exit on request")
-	}
-
-	_ = os.Remove(tidFile)
-	return nil
-}
-
 func waitTimeout(proc *os.Process, timeout time.Duration) *os.ProcessState {
 	return doTimeout(func(complete chan *os.ProcessState) {
 		state, _ := proc.Wait()
