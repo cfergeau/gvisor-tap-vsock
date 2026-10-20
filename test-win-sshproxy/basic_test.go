@@ -125,6 +125,39 @@ var _ = Describe("connectivity", func() {
 		Expect(errors.Is(err, fs.ErrNotExist)).Should(BeTrue())
 	})
 
+	It("proxies over a unix socket 2", func() {
+		_, err := os.Stat(unixSocketPath)
+		Expect(err).Should(HaveOccurred())
+		Expect(errors.Is(err, fs.ErrNotExist)).Should(BeTrue())
+
+		err = startProxy(unixSocketPath)
+		Expect(err).ShouldNot(HaveOccurred())
+		proxyRunning := true
+		defer func() {
+			if proxyRunning {
+				Expect(stopProxy(true)).ShouldNot(HaveOccurred())
+				proxyRunning = false
+			}
+		}()
+
+		// ensure the unix socket is created
+		Eventually(func(g Gomega) {
+			conn, err := net.Dial("unix", unixSocketPath)
+			g.Expect(err).ShouldNot(HaveOccurred())
+			defer conn.Close()
+		}).Should(Succeed())
+
+		_, err = os.Stat(unixSocketPath)
+		Expect(err).ShouldNot(HaveOccurred())
+
+		Expect(stopProxy(false)).ShouldNot(HaveOccurred())
+		proxyRunning = false
+
+		_, err = os.Stat(unixSocketPath)
+		Expect(err).Should(HaveOccurred())
+		Expect(errors.Is(err, fs.ErrNotExist)).Should(BeTrue())
+	})
+
 	It("windows event logs were created", func() {
 		cmd := exec.Command("powershell", "-Command", "&{Get-WinEvent -ProviderName \".NET Runtime\" -MaxEvents 10 | Where-Object -Property Message -Match \"test:\"}")
 		reader, err := cmd.StdoutPipe()
