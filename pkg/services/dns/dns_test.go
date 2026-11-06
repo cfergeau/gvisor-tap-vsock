@@ -591,6 +591,12 @@ var _ = ginkgo.Describe("upstream NODATA answers", func() {
 		gomega.Expect(m.Answer).To(gomega.BeEmpty())
 	})
 
+	ginkgo.It("should answer NOERROR without records for TXT queries on names without TXT records", func() {
+		m := query(nodataDomain, dns.TypeTXT)
+		gomega.Expect(m.Rcode).To(gomega.Equal(dns.RcodeSuccess))
+		gomega.Expect(m.Answer).To(gomega.BeEmpty())
+	})
+
 	ginkgo.It("should answer A queries for the same name", func() {
 		m := query(nodataDomain, dns.TypeA)
 		gomega.Expect(m.Rcode).To(gomega.Equal(dns.RcodeSuccess))
