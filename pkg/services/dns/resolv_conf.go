@@ -108,7 +108,7 @@ func sameFileVersion(a, b os.FileInfo) bool {
 
 // readNameservers returns the DNS servers listed in the file at path, and
 // the file's details as it was opened.
-func readNameservers(path string) ([]string, os.FileInfo, error) {
+func readNameservers(path string) (ns []string, fileInfo os.FileInfo, retErr error) {
 	f, err := os.Open(path)
 	if err != nil {
 		return nil, nil, err
