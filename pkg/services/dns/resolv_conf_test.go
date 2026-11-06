@@ -138,13 +138,12 @@ func TestResolvConfConcurrentRewrites(t *testing.T) {
 	var wg sync.WaitGroup
 	results := make(chan []string, 800)
 	for range 8 {
-		wg.Add(1)
-		go func() {
+		wg.Go(func() {
 			defer wg.Done()
 			for range 100 {
 				results <- r.nameservers()
 			}
-		}()
+		})
 	}
 	for i := range 50 {
 		if i%2 == 0 {
