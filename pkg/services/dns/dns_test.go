@@ -542,6 +542,67 @@ var _ = ginkgo.Describe("TXT records", func() {
 
 })
 
+var _ = ginkgo.Describe("upstream NODATA answers", func() {
+	var (
+		mockSrv *mockdns.Server
+		server  *Server
+	)
+
+	// A name that exists upstream (it has A records) but has no MX
+	// records: the upstream answers NOERROR with an empty answer section
+	// (NODATA), like public resolvers do for raw.githubusercontent.com.
+	const nodataDomain = "nodata.example.org."
+
+	ginkgo.BeforeEach(func() {
+		var err error
+		mockSrv, err = mockdns.NewServer(map[string]mockdns.Zone{
+			nodataDomain: {
+				A: []string{"192.0.2.1"},
+			},
+		}, false)
+		gomega.Expect(err).ToNot(gomega.HaveOccurred())
+
+		// The upstream must be a real net.Resolver talking to mockSrv over
+		// the wire: Go's resolver reports a NOERROR answer with no records
+		// of the requested type as a "no such host" error (IsNotFound),
+		// which is what issue #772 is about. A mockdns.Resolver used
+		// directly in-process returns an empty result with no error and
+		// would not reproduce it.
+		server, err = NewWithUpstreamResolver(nil, nil, []types.Zone{}, mockSrv.NewResolver())
+		gomega.Expect(err).ToNot(gomega.HaveOccurred())
+	})
+
+	ginkgo.AfterEach(func() {
+		if mockSrv != nil {
+			_ = mockSrv.Close()
+		}
+	})
+
+	query := func(name string, qtype uint16) *dns.Msg {
+		m := new(dns.Msg)
+		m.SetQuestion(name, qtype)
+		server.handler.addAnswers(m)
+		return m
+	}
+
+	ginkgo.It("should answer NOERROR without records for MX queries on names without MX records", func() {
+		m := query(nodataDomain, dns.TypeMX)
+		gomega.Expect(m.Rcode).To(gomega.Equal(dns.RcodeSuccess), "issue #772: NODATA must not be answered NXDOMAIN")
+		gomega.Expect(m.Answer).To(gomega.BeEmpty())
+	})
+
+	ginkgo.It("should answer A queries for the same name", func() {
+		m := query(nodataDomain, dns.TypeA)
+		gomega.Expect(m.Rcode).To(gomega.Equal(dns.RcodeSuccess))
+		gomega.Expect(m.Answer).To(gomega.HaveLen(1))
+	})
+
+	ginkgo.It("should still answer NXDOMAIN for nonexistent names", func() {
+		m := query("nonexistent.example.org.", dns.TypeMX)
+		gomega.Expect(m.Rcode).To(gomega.Equal(dns.RcodeNameError))
+	})
+})
+
 var _ = ginkgo.Describe("forwarding unhandled record types", func() {
 	var (
 		mockSrv *mockdns.Server
