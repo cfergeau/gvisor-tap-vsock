@@ -52,10 +52,13 @@ var _ = AfterSuite(func() {
 	stopMockServer()
 })
 
-func startProxy(source string) error {
+// startProxy starts a proxy forwarding the socket at source to the
+// mock SSH server. The returned command gives access to the proxy
+// process, notably to wait for its exit.
+func startProxy(source string) (*exec.Cmd, error) {
 	os.Remove(tidFile)
 	cmd := exec.Command(winSshProxy, "-debug", "test", tmpDir, source, "ssh://localhost:2134/run/podman/podman.sock", keyFile)
-	return cmd.Start()
+	return cmd, cmd.Start()
 }
 
 func readTid() (uint32, uint32, error) {

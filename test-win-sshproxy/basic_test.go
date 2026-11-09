@@ -4,6 +4,7 @@ package e2e
 
 import (
 	"context"
+	"errors"
 	"io"
 	"net"
 	"net/http"
@@ -30,7 +31,7 @@ const (
 
 var _ = Describe("connectivity", func() {
 	It("proxy exits as requested, without a kill", func() {
-		err := startProxy(npipeSource)
+		_, err := startProxy(npipeSource)
 		Expect(err).ShouldNot(HaveOccurred())
 
 		var pid, tid uint32
@@ -72,14 +73,60 @@ var _ = Describe("connectivity", func() {
 	})
 
 	It("proxies over a unix socket", func() {
-		// AF_UNIX socket paths must be absolute on Windows
-		socketPath, err := filepath.Abs(filepath.Join(tmpDir, "fake_docker_engine.sock"))
+		socketPath, err := unixSocketPath("fake_docker_engine.sock")
 		Expect(err).ShouldNot(HaveOccurred())
 
 		var dialer net.Dialer
 		checkProxying(unixSocketURL(socketPath), func(ctx context.Context) (net.Conn, error) {
 			return dialer.DialContext(ctx, "unix", socketPath)
 		})
+	})
+
+	It("can start when a stale unix socket is left behind", func() {
+		socketPath, err := unixSocketPath("stale_docker_engine.sock")
+		Expect(err).ShouldNot(HaveOccurred())
+
+		// Leave a socket behind, as a crashed proxy would
+		createStaleSocket(socketPath)
+
+		var dialer net.Dialer
+		checkProxying(unixSocketURL(socketPath), func(ctx context.Context) (net.Conn, error) {
+			return dialer.DialContext(ctx, "unix", socketPath)
+		})
+
+		// The proxy replaced the stale socket with its own, and removed
+		// the latter when stopping: nothing is left behind.
+		_, err = os.Stat(socketPath)
+		Expect(errors.Is(err, os.ErrNotExist)).To(BeTrue())
+	})
+
+	It("does not remove a plain file sitting at the unix socket path", func() {
+		socketPath, err := unixSocketPath("plain.file")
+		Expect(err).ShouldNot(HaveOccurred())
+
+		plainFile := []byte("not a unix socket")
+		Expect(os.WriteFile(socketPath, plainFile, 0o600)).Should(Succeed())
+
+		cmd, err := startProxy(unixSocketURL(socketPath))
+		Expect(err).ShouldNot(HaveOccurred())
+
+		// The proxy cannot listen while the plain file sits at the
+		// socket path, so it must exit on its own instead of serving.
+		state := waitTimeout(cmd.Process, 20*time.Second)
+		if state == nil {
+			// Don't leave a running proxy behind for the next tests
+			_ = cmd.Process.Kill()
+			Fail("proxy did not exit after failing to listen on its unix socket")
+		}
+		Expect(state.Exited()).To(BeTrue())
+
+		// The proxy must not have removed a file it does not own
+		remaining, err := os.ReadFile(socketPath)
+		Expect(err).ShouldNot(HaveOccurred())
+		Expect(remaining).To(Equal(plainFile))
+
+		// The proxy is gone, clean up the state file it left behind
+		Expect(os.Remove(tidFile)).Should(Succeed())
 	})
 })
 
@@ -88,7 +135,7 @@ var _ = Describe("connectivity", func() {
 // proxied: a "ping" HTTP request must get a "pong" reply. The proxy is
 // stopped when the check is done.
 func checkProxying(source string, dial func(ctx context.Context) (net.Conn, error)) {
-	err := startProxy(source)
+	_, err := startProxy(source)
 	Expect(err).ShouldNot(HaveOccurred())
 	defer func() {
 		Expect(stopProxy(false)).ShouldNot(HaveOccurred())
@@ -119,6 +166,13 @@ func checkProxying(source string, dial func(ctx context.Context) (net.Conn, erro
 	}).Should(Succeed())
 }
 
+// unixSocketPath returns the absolute path of the unix socket file
+// named name in the suite's temporary directory. AF_UNIX socket paths
+// must be absolute on Windows.
+func unixSocketPath(name string) (string, error) {
+	return filepath.Abs(filepath.Join(tmpDir, name))
+}
+
 // unixSocketURL returns the unix:// URL for the unix socket at path, to
 // be used as a proxy source. Windows paths ("c:/...") get a leading
 // "/", which the proxy strips when parsing the URL.
@@ -128,4 +182,18 @@ func unixSocketURL(path string) string {
 		path = "/" + path
 	}
 	return (&url.URL{Scheme: "unix", Path: path}).String()
+}
+
+// createStaleSocket leaves a unix socket file behind at path, as a
+// crashed proxy would: nothing listens on it anymore, but the file is
+// still there.
+func createStaleSocket(path string) {
+	listener, err := net.Listen("unix", path)
+	Expect(err).ShouldNot(HaveOccurred())
+	listener.(*net.UnixListener).SetUnlinkOnClose(false)
+	Expect(listener.Close()).ShouldNot(HaveOccurred())
+
+	// The socket file must have been left behind
+	_, err = os.Stat(path)
+	Expect(err).ShouldNot(HaveOccurred())
 }
