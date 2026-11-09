@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -20,9 +21,39 @@ import (
 
 var timeout = 1 * time.Minute
 
+const npipeSource = "npipe:////./pipe/fake_docker_engine"
+
+// expectPingThroughProxy sends an HTTP request through the proxied
+// connection returned by dial and checks the mock server's reply.
+func expectPingThroughProxy(dial func() (net.Conn, error)) {
+	httpClient := &http.Client{
+		Transport: &http.Transport{
+			DialContext: func(_ context.Context, _, _ string) (net.Conn, error) {
+				return dial()
+			},
+		},
+	}
+
+	Eventually(func(g Gomega) {
+		resp, err := httpClient.Get("http://host/ping")
+		g.Expect(err).ShouldNot(HaveOccurred())
+		defer resp.Body.Close()
+
+		g.Expect(resp.StatusCode).To(Equal(http.StatusOK))
+		g.Expect(resp.ContentLength).To(Equal(int64(4)))
+
+		reply := make([]byte, resp.ContentLength)
+		_, err = io.ReadAtLeast(resp.Body, reply, len(reply))
+
+		g.Expect(err).ShouldNot(HaveOccurred())
+		g.Expect(string(reply)).To(Equal("pong"))
+
+	}).Should(Succeed())
+}
+
 var _ = Describe("connectivity", func() {
 	It("proxy exits as requested, without a kill", func() {
-		err := startProxy()
+		err := startProxy(npipeSource)
 		Expect(err).ShouldNot(HaveOccurred())
 
 		var pid, tid uint32
@@ -44,34 +75,15 @@ var _ = Describe("connectivity", func() {
 	})
 
 	It("proxies over a windows pipe", func() {
-		err := startProxy()
+		err := startProxy(npipeSource)
 		Expect(err).ShouldNot(HaveOccurred())
 		defer func() {
 			Expect(stopProxy(false)).ShouldNot(HaveOccurred())
 		}()
-		httpClient := &http.Client{
-			Transport: &http.Transport{
-				DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
-					return winio.DialPipe(`\\.\pipe\fake_docker_engine`, &timeout)
-				},
-			},
-		}
 
-		Eventually(func(g Gomega) {
-			resp, err := httpClient.Get("http://host/ping")
-			g.Expect(err).ShouldNot(HaveOccurred())
-			defer resp.Body.Close()
-
-			g.Expect(resp.StatusCode).To(Equal(http.StatusOK))
-			g.Expect(resp.ContentLength).To(Equal(int64(4)))
-
-			reply := make([]byte, resp.ContentLength)
-			_, err = io.ReadAtLeast(resp.Body, reply, len(reply))
-
-			g.Expect(err).ShouldNot(HaveOccurred())
-			g.Expect(string(reply)).To(Equal("pong"))
-
-		}).Should(Succeed())
+		expectPingThroughProxy(func() (net.Conn, error) {
+			return winio.DialPipe(`\\.\pipe\fake_docker_engine`, &timeout)
+		})
 	})
 
 	It("windows event logs were created", func() {
@@ -86,5 +98,19 @@ var _ = Describe("connectivity", func() {
 		Expect(err).ShouldNot(HaveOccurred())
 		Expect(strings.Contains(string(output), `[info ] test: Listening on: \\.\pipe\fake_docker_engine`)).Should(BeTrue())
 		Expect(strings.Contains(string(output), `[debug] test: Socket forward established`)).Should(BeTrue())
+	})
+
+	It("proxies over a unix socket", func() {
+		socketPath := filepath.Join(tmpDir, "fake_docker_engine.sock")
+		_ = os.Remove(socketPath)
+		err := startProxy(socketPath)
+		Expect(err).ShouldNot(HaveOccurred())
+		defer func() {
+			Expect(stopProxy(false)).ShouldNot(HaveOccurred())
+		}()
+
+		expectPingThroughProxy(func() (net.Conn, error) {
+			return net.DialTimeout("unix", socketPath, timeout)
+		})
 	})
 })
