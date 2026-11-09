@@ -52,10 +52,13 @@ var _ = AfterSuite(func() {
 	stopMockServer()
 })
 
+func proxyCommand(source string) *exec.Cmd {
+	return exec.Command(winSshProxy, "-debug", "test", tmpDir, source, "ssh://localhost:2134/run/podman/podman.sock", keyFile)
+}
+
 func startProxy(source string) error {
 	os.Remove(tidFile)
-	cmd := exec.Command(winSshProxy, "-debug", "test", tmpDir, source, "ssh://localhost:2134/run/podman/podman.sock", keyFile)
-	return cmd.Start()
+	return proxyCommand(source).Start()
 }
 
 func readTid() (uint32, uint32, error) {
