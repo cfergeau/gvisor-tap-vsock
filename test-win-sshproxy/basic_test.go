@@ -100,17 +100,64 @@ var _ = Describe("connectivity", func() {
 		Expect(strings.Contains(string(output), `[debug] test: Socket forward established`)).Should(BeTrue())
 	})
 
-	It("proxies over a unix socket", func() {
-		socketPath := filepath.Join(tmpDir, "fake_docker_engine.sock")
-		_ = os.Remove(socketPath)
-		err := startProxy(socketPath)
-		Expect(err).ShouldNot(HaveOccurred())
-		defer func() {
-			Expect(stopProxy(false)).ShouldNot(HaveOccurred())
-		}()
+	Context("unix socket", func() {
+		var socketPath string
 
-		expectPingThroughProxy(func() (net.Conn, error) {
+		BeforeEach(func() {
+			socketPath = filepath.Join(tmpDir, "fake_docker_engine.sock")
+			_ = os.Remove(socketPath)
+			DeferCleanup(func() {
+				_ = os.Remove(socketPath)
+			})
+		})
+
+		dialSocket := func() (net.Conn, error) {
 			return net.DialTimeout("unix", socketPath, timeout)
+		}
+
+		It("proxies over a unix socket", func() {
+			err := startProxy(socketPath)
+			Expect(err).ShouldNot(HaveOccurred())
+			defer func() {
+				Expect(stopProxy(false)).ShouldNot(HaveOccurred())
+			}()
+
+			expectPingThroughProxy(dialSocket)
+		})
+
+		It("replaces a stale unix socket", func() {
+			listener, err := net.ListenUnix("unix", &net.UnixAddr{Name: socketPath, Net: "unix"})
+			Expect(err).ShouldNot(HaveOccurred())
+			// Leave the socket file behind, as a crashed proxy would
+			listener.SetUnlinkOnClose(false)
+			Expect(listener.Close()).Should(Succeed())
+			fi, err := os.Lstat(socketPath)
+			Expect(err).ShouldNot(HaveOccurred())
+			Expect(fi.Mode() & os.ModeSocket).ShouldNot(BeZero())
+
+			err = startProxy(socketPath)
+			Expect(err).ShouldNot(HaveOccurred())
+			defer func() {
+				Expect(stopProxy(false)).ShouldNot(HaveOccurred())
+			}()
+
+			expectPingThroughProxy(dialSocket)
+		})
+
+		It("does not remove a plain file at the unix socket path", func() {
+			const content = "not a socket"
+			Expect(os.WriteFile(socketPath, []byte(content), 0o600)).Should(Succeed())
+
+			cmd := proxyCommand(socketPath)
+			Expect(cmd.Start()).Should(Succeed())
+			// The proxy cannot listen on the socket path and exits by itself
+			state := waitTimeout(cmd.Process, 20*time.Second)
+			if state == nil {
+				_ = cmd.Process.Kill()
+			}
+			Expect(state).ShouldNot(BeNil())
+
+			Expect(os.ReadFile(socketPath)).Should(Equal([]byte(content)))
 		})
 	})
 })
