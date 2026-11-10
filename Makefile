@@ -44,6 +44,7 @@ vendor:
 	go mod tidy
 	go mod vendor
 
+# FIXME: does this recurse in the test directories with their own go.mod?
 .PHONY: lint
 lint: $(TOOLS_BINDIR)/golangci-lint
 	"$(TOOLS_BINDIR)"/golangci-lint run
@@ -83,13 +84,13 @@ test: gvproxy test-companion
 
 .PHONY: test-qemu
 test-qemu: gvproxy test-companion
-	go test -timeout 20m  -v ./test-qemu
+	cd test-qemu && go test -timeout 20m  -v ./
 
 .PHONY: test-mac
 test-mac: gvproxy
-	go test -timeout 20m  -v ./test-vfkit
+	cd test-vfkit && go test -timeout 20m  -v ./
 
 .PHONY: test-mac-debug
 test-mac-debug:
-	go test -timeout 20m  -v ./test-vfkit --debug
+	cd test-vfkit && go test -timeout 20m  -v ./ --debug
 	rm -f ./test-vfkit/__debug_bin*
