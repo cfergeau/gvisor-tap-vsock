@@ -125,6 +125,24 @@ var _ = Describe("connectivity", func() {
 			expectPingThroughProxy(dialSocket)
 		})
 
+		It("removes the unix socket on exit", func() {
+			err := startProxy(socketPath)
+			Expect(err).ShouldNot(HaveOccurred())
+			stopped := false
+			defer func() {
+				if !stopped {
+					_ = stopProxy(false)
+				}
+			}()
+
+			expectPingThroughProxy(dialSocket)
+
+			Expect(stopProxy(true)).Should(Succeed())
+			stopped = true
+			_, err = os.Lstat(socketPath)
+			Expect(err).Should(MatchError(os.ErrNotExist))
+		})
+
 		It("replaces a stale unix socket", func() {
 			listener, err := net.ListenUnix("unix", &net.UnixAddr{Name: socketPath, Net: "unix"})
 			Expect(err).ShouldNot(HaveOccurred())
